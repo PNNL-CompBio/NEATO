@@ -1,0 +1,143 @@
+---
+title: "proStat"
+author: "Logan Lewis"
+date: '2022-04-13'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(pmartR)
+library(tidyverse)
+library(STRINGdb)
+library(stringr)
+```
+
+```{r}
+proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat.RDS")
+```
+
+#data exploration
+
+```{r}
+attributes(proStat)
+```
+
+```{r}
+plot(proStat)
+```
+^ these are the 6 groups well be looking at
+
+## Adding a column of protein identifiers to feed into STRINGdb
+
+```{r}
+str_split("sp|O15144|ARPC2_HUMAN", "\\W")[[1]][2]
+Protein_Identifier <- c()
+for(i in 1:nrow(proStat)){
+  Protein_Identifier <- c(Protein_Identifier, str_split(proStat$Protein, "\\W")[[i]][2])
+}
+proStat2 <- mutate(proStat, Protein_Identifier)
+saveRDS(proStat2, file = "proStat2.RDS")
+```
+
+## Filtering by Up/Down regulation across condition comparisons
+
+```{r}
+Up_HvS <- filter(proStat2, `Flag_A_Healthy Control_vs_Severe` == "1")
+Up_MvH <- filter(proStat2, `Flag_A_Mild_vs_Healthy Control` == "1")
+Up_MvS <- filter(proStat2, `Flag_A_Mild_vs_Severe` == "1")
+Down_HvS <- filter(proStat2, `Flag_A_Healthy Control_vs_Severe` == "-1")
+Down_MvH <- filter(proStat2, `Flag_A_Mild_vs_Healthy Control` == "-1")
+Down_MvS <- filter(proStat2, `Flag_A_Mild_vs_Severe` == "-1")
+```
+
+## Creating STRINGdb object
+
+```{r}
+string_db <- STRINGdb$new(version="11", species=9606, score_threshold=400, input_directory="")
+```
+
+```{r}
+Up_HvS <- filter(Up_HvS, `P_value_A_Healthy Control_vs_Severe` < 0.05)
+hist(Up_HvS$`Fold_change_Healthy Control_vs_Severe`, breaks = 20)
+```
+
+
+## Mapping proteins using STRINGdb
+
+```{r}
+Up_HvS <- filter(Up_HvS, `Fold_change_Healthy Control_vs_Severe` > 0.15)
+Up_HvS <- Up_HvS[order(Up_HvS$`Fold_change_Healthy Control_vs_Severe`), ]
+example1_mapped <- string_db$map(Up_HvS, "Protein_Identifier", removeUnmappedRows = TRUE )
+```
+## protein network (top 200 proteins, sorted by p-value)
+
+```{r}
+hits <- example1_mapped$STRING_id
+string_db$plot_network(hits)
+```
+## Enrichment and annotations
+
+```{r}
+enrichment <- string_db$get_enrichment( hits )
+head(enrichment, n=20)
+```
+```{r}
+ annotations <- string_db$get_annotations( hits )
+head(annotations, n=20)
+```
+## Clustering
+
+```{r}
+clustersList <- string_db$get_clusters(example1_mapped$STRING_id[1:600])
+```
+
+```{r}
+par(mfrow=c(2,2))
+for(i in seq(1:4)){
+string_db$plot_network(clustersList[[i]])
+}
+```
+
+```{r}
+Down_HvS <- filter(Down_HvS, `P_value_A_Healthy Control_vs_Severe` < 0.05)
+hist(Down_HvS$`Fold_change_Healthy Control_vs_Severe`, breaks = 20)
+```
+
+
+## Mapping proteins using STRINGdb
+
+```{r}
+Down_HvS <- filter(Down_HvS, `Fold_change_Healthy Control_vs_Severe` < -0.65)
+#Down_HvS <- Down_HvS[order(Down_HvS$`Fold_change_Healthy Control_vs_Severe`), ]
+example2_mapped <- string_db$map(Down_HvS, "Protein_Identifier", removeUnmappedRows = TRUE )
+```
+## protein network (top 200 proteins, sorted by p-value)
+
+```{r}
+hits <- example2_mapped$STRING_id
+string_db$plot_network(hits)
+```
+```{r}
+enrichment_down <- string_db$get_enrichment( hits )
+head(enrichment_down, n=20)
+```
+
+```{r}
+ annotations_down <- string_db$get_annotations( hits )
+head(annotations_down, n=20)
+```
+
+```{r}
+clustersList_down <- string_db$get_clusters(example1_mapped$STRING_id)
+```
+
+```{r}
+par(mfrow=c(2,2))
+for(i in seq(1:4)){
+string_db$plot_network(clustersList_down[[i]])
+}
+```

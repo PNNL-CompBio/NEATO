@@ -1,0 +1,57 @@
+---
+title: "pmartR practice"
+output: html_document
+date: '2022-04-13'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(pmartR)
+library(pmartRdata)
+library(tidyverse)
+library(reshape2)
+```
+
+```{r}
+data("pro_edata")
+dim(pro_edata)
+pro_edata[1:6,1:5]
+```
+```{r}
+data("pro_fdata")
+dim(pro_fdata)
+head(pro_fdata)
+```
+
+```{r}
+myproData <- as.proData(e_data = pro_edata, f_data = pro_fdata, edata_cname = "Reference", fdata_cname = "SampleID", data_scale = "abundance")
+class(myproData)
+summary(myproData)
+```
+
+```{r}
+plot(myproData)
+```
+
+```{r}
+myproData <- edata_transform(myproData, data_scale = "log2")
+attributes(myproData)$data_info$data_scale
+```
+
+```{r}
+plot(myproData)
+```
+
+```{r}
+myproData <- group_designation(myproData, main_effects = "Condition", covariates = NULL)
+
+attributes(myproData)$group_DF
+
+plot(myproData, color_by = "Condition", bw_theme=TRUE)
+```
+
+
+
