@@ -1,0 +1,62 @@
+---
+title: "clusterProfiler_practice"
+author: "Logan Lewis"
+date: '2022-04-15'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(AnnotationHub)
+library(rtracklayer)
+library(stringr)
+library(org.Hs.eg.db)
+library("clusterProfiler")
+```
+
+```{r}
+proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat2.RDS")
+```
+
+```{r}
+geneList_HvS <- proStat[,10]
+names(geneList_HvS) = as.character(proStat[,17])
+geneList_HvS = sort(geneList_HvS, decreasing = TRUE)
+```
+
+```{r}
+ggo <- groupGO(gene     = proStat$Gene_Name,
+               OrgDb    = org.Hs.eg.db,
+               keyType = "UNIPROT",
+               ont      = "CC",
+               level    = 3,
+               readable = TRUE)
+```
+
+```{r}
+ggo[order(ggo$Count), ]
+```
+
+```{r}
+ego3 <- gseGO(geneList     = geneList_HvS,
+              OrgDb        = org.Hs.eg.db,
+              keyType = "UNIPROT",
+              ont          = "CC",
+              verbose      = FALSE)
+```
+
+```{r}
+ego3 <- ego3[order(ego3$enrichmentScore), ]
+head(ego3, n=75)
+```
+```{r}
+goplot(ego3)
+```
+
+
+
+

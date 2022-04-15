@@ -17,7 +17,7 @@ library(stringr)
 ```
 
 ```{r}
-proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat.RDS")
+proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat2.RDS")
 ```
 
 #data exploration
@@ -34,24 +34,26 @@ plot(proStat)
 ## Adding a column of protein identifiers to feed into STRINGdb
 
 ```{r}
-str_split("sp|O15144|ARPC2_HUMAN", "\\W")[[1]][2]
-Protein_Identifier <- c()
+tmp <- str_split(proStat$Protein, "\\W")[[1]][3]
+Gene_Name <- c(Gene_Name, str_split(tmp, "_")[[1]][1])
+Gene_Name <- c()
 for(i in 1:nrow(proStat)){
-  Protein_Identifier <- c(Protein_Identifier, str_split(proStat$Protein, "\\W")[[i]][2])
+  tmp <- str_split(proStat$Protein, "\\W")[[i]][3]
+  Gene_Name <- c(Gene_Name, str_split(tmp, "_")[[1]][1])
 }
-proStat2 <- mutate(proStat, Protein_Identifier)
-saveRDS(proStat2, file = "proStat2.RDS")
+proStat <- mutate(proStat, Gene_Name = Gene_Name)
+saveRDS(proStat, file = "proStat2.RDS")
 ```
 
 ## Filtering by Up/Down regulation across condition comparisons
 
 ```{r}
-Up_HvS <- filter(proStat2, `Flag_A_Healthy Control_vs_Severe` == "1")
-Up_MvH <- filter(proStat2, `Flag_A_Mild_vs_Healthy Control` == "1")
-Up_MvS <- filter(proStat2, `Flag_A_Mild_vs_Severe` == "1")
-Down_HvS <- filter(proStat2, `Flag_A_Healthy Control_vs_Severe` == "-1")
-Down_MvH <- filter(proStat2, `Flag_A_Mild_vs_Healthy Control` == "-1")
-Down_MvS <- filter(proStat2, `Flag_A_Mild_vs_Severe` == "-1")
+Up_HvS <- filter(proStat, `Flag_A_Healthy Control_vs_Severe` == "1")
+Up_MvH <- filter(proStat, `Flag_A_Mild_vs_Healthy Control` == "1")
+Up_MvS <- filter(proStat, `Flag_A_Mild_vs_Severe` == "1")
+Down_HvS <- filter(proStat, `Flag_A_Healthy Control_vs_Severe` == "-1")
+Down_MvH <- filter(proStat, `Flag_A_Mild_vs_Healthy Control` == "-1")
+Down_MvS <- filter(proStat, `Flag_A_Mild_vs_Severe` == "-1")
 ```
 
 ## Creating STRINGdb object
@@ -70,13 +72,13 @@ hist(Up_HvS$`Fold_change_Healthy Control_vs_Severe`, breaks = 20)
 
 ```{r}
 Up_HvS <- filter(Up_HvS, `Fold_change_Healthy Control_vs_Severe` > 0.15)
-Up_HvS <- Up_HvS[order(Up_HvS$`Fold_change_Healthy Control_vs_Severe`), ]
+Up_HvS <- Up_HvS[order(Up_HvS$`Fold_change_Healthy Control_vs_Severe`, decreasing = T), ]
 example1_mapped <- string_db$map(Up_HvS, "Protein_Identifier", removeUnmappedRows = TRUE )
 ```
 ## protein network (top 200 proteins, sorted by p-value)
 
 ```{r}
-hits <- example1_mapped$STRING_id
+hits <- example1_mapped$STRING_id[1:150]
 string_db$plot_network(hits)
 ```
 ## Enrichment and annotations
@@ -89,6 +91,27 @@ head(enrichment, n=20)
  annotations <- string_db$get_annotations( hits )
 head(annotations, n=20)
 ```
+
+```{r}
+colnames(proStat)[which(names(proStat) == "P_value_A_Healthy Control_vs_Severe")] <- "P_value"
+colnames(proStat)[which(names(proStat) == "Fold_change_Healthy Control_vs_Severe")] <- "Fold_change"
+colnames(proStat)[which(names(proStat) == "Flag_A_Healthy Control_vs_Severe")] <- "Flag"
+colnames(proStat)[which(names(proStat) == "Count_Healthy Control")] <- "Count"
+colnames(proStat)[which(names(proStat) == "Mean_Healthy Control")] <- "Mean"
+
+selection <- proStat %>% select(Protein, Count, Mean, P_value, Fold_change, Flag, Protein_Identifier)
+
+filtered_stat <- filter(selection, Flag == 1) %>% filter(P_value < 0.05)
+
+filtered_stat <- filtered_stat[order(filtered_stat$`Fold_change`, decreasing = T), ]
+
+mapped_stat <- string_db$map(filtered_stat, "Protein_Identifier", removeUnmappedRows = TRUE )
+hits_test <- mapped_stat$STRING_id[1:150]
+
+enrichment_test <- string_db$get_enrichment(hits_test)
+annotations_test <- string_db$get_annotations(hits_test)
+```
+
 ## Clustering
 
 ```{r}
