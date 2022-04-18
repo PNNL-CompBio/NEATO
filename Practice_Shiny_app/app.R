@@ -6,9 +6,9 @@ proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat2.RDS")
 
 string_db <- STRINGdb$new(version="11", species=9606, score_threshold=400, input_directory="/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache")
 
-ui <- fluidPage(selectInput(inputId = "regulation", 
-                            label = "Choose whether to include upregulated or downregulated proteins in the network", 
-                            choices = list("Upregulated", "Downregulated")),
+ui <- fluidPage(# selectInput(inputId = "regulation", 
+                            # label = "Choose whether to include upregulated or downregulated proteins in the network", 
+                            # choices = list("Upregulated", "Downregulated")),
                 selectInput(inputId = "Comparision",
                             label = "Choose COVID-19 patient status comparision",
                             choices = list("Healthy vs Severe", "Mild vs Healthy", "Mild vs Severe")),
@@ -23,6 +23,7 @@ ui <- fluidPage(selectInput(inputId = "regulation",
                             max = 800,
                             value = 400),
                 plotOutput("network"),
+                dataTableOutput("top"),
                 dataTableOutput("enrich")
                 )
 
@@ -30,7 +31,7 @@ ui <- fluidPage(selectInput(inputId = "regulation",
 server <- function(input, output) {
   output$network <- renderPlot({
     #setting variable based on selection
-    reg <- ifelse(input$regulation == "Upregulated", 1, -1)
+    # eg <- ifelse(input$regulation == "Upregulated", 1, -1)
     
     #changing names of columns based on sections
     if (input$Comparision == "Healthy vs Severe") {
@@ -51,23 +52,40 @@ server <- function(input, output) {
     
     #filtering for the appropriate regulation and significant p-value
     
-    filtered_stat <- filter(proStat, Flag == reg) %>% filter(P_value < 0.05)
+    # filtered_stat <- filter(proStat, Flag == reg) %>% filter(P_value < 0.05)
     
     #ordering by logFC
-    filtered_stat <- filtered_stat[order(filtered_stat$`Fold_change`), ]
+    # filtered_stat <- filtered_stat[order(filtered_stat$`Fold_change`), ]
+    # filtered_stat <- mutate(proStat, Fold_change_abs = abs(proStat$Fold_change))
+    # filtered_stat <- filtered_stat[order(filtered_stat$`Fold_change_abs`, decreasing = T), ]
     
-    mapped_stat <- string_db$map(filtered_stat, "Protein_Identifier", removeUnmappedRows = TRUE )
+    mapped_stat <- string_db$map(proStat, "Protein_Identifier", removeUnmappedRows = TRUE )
     
-    hits <- mapped_stat$STRING_id[1:input$included_prots]
+    mapped_stat_pval05 <- string_db$add_diff_exp_color( subset(mapped_stat, P_value<0.05), logFcColStr="Fold_change" )
+    mapped_stat_pval05 <- mutate(mapped_stat_pval05, Fold_change_abs = abs(mapped_stat_pval05$Fold_change))
+    mapped_stat_pval05 <- mapped_stat_pval05[order(mapped_stat_pval05$`Fold_change_abs`, decreasing = T), ]
+    
+    payload_id <- string_db$post_payload( mapped_stat_pval05$STRING_id, colors=mapped_stat_pval05$color )
+    
+    hits <- mapped_stat_pval05[1:input$included_prots, ]
     wd <- getwd()
     file <- paste(wd, "hits.RDS", sep = "/")
     saveRDS(hits, file = file)
     
-    string_db$plot_network(hits)
+    string_db$plot_network(hits$STRING_id, payload_id = payload_id)
     
   })
+  output$top <- renderDataTable({
+    tmp <- input$Comparision
+    tmp <- input$included_prots
+    tmp <- input$score_thresh
+    wd <- getwd()
+    file <- paste(wd, "hits.RDS", sep = "/")
+    hits <- readRDS(file)
+    hits[, c("Protein", "Protein_Identifier", "Gene_Name", "STRING_id", "Fold_change", "Flag", "P_value", "Count_Healthy.Control", "Count_Mild", "Count_Severe", "Mean_Healthy.Control", "Mean_Mild", "Mean_Severe")]
+  })
   output$enrich <- renderDataTable({
-    tmp <- input$regulation
+    # tmp <- input$regulation
     tmp <- input$Comparision
     tmp <- input$included_prots
     
@@ -75,8 +93,8 @@ server <- function(input, output) {
     wd <- getwd()
     file <- paste(wd, "hits.RDS", sep = "/")
     hits <- readRDS(file)
-    enrichment <- string_db$get_enrichment(hits)
-    enrichment
+    enrichment <- string_db$get_enrichment(hits$STRING_id)
+    enrichment[, c("category", "term", "description", "number_of_genes", "number_of_genes_in_background", "p_value", "fdr")]
   })
 }
 
