@@ -11,8 +11,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
-library(AnnotationHub)
-library(rtracklayer)
 library(stringr)
 library(org.Hs.eg.db)
 library("clusterProfiler")
@@ -23,13 +21,20 @@ proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat2.RDS")
 ```
 
 ```{r}
-geneList_HvS <- proStat[,10]
-names(geneList_HvS) = as.character(proStat[,17])
+#grabbing statistically significant and differentially expressed proteins
+proStat_HvS <- proStat %>% filter(`P_value_A_Healthy Control_vs_Severe`<0.05) %>% filter(`Flag_A_Healthy Control_vs_Severe` != 0)
+```
+
+```{r}
+#creating a gene list with logFC as values, UNIPROT identifiers as names, and ordering them by logFC (all needed for gseGO())
+geneList_HvS <- proStat_HvS[,10]
+names(geneList_HvS) = as.character(proStat_HvS[,17])
 geneList_HvS = sort(geneList_HvS, decreasing = TRUE)
 ```
 
 ```{r}
-ggo <- groupGO(gene     = proStat$Gene_Name,
+# GO term classification of genes
+ggo <- groupGO(gene     = proStat_HvS$Protein_Identifier,
                OrgDb    = org.Hs.eg.db,
                keyType = "UNIPROT",
                ont      = "CC",
@@ -38,10 +43,11 @@ ggo <- groupGO(gene     = proStat$Gene_Name,
 ```
 
 ```{r}
-ggo[order(ggo$Count), ]
+ggo[order(ggo$GeneRatio, decreasing = T), ]
 ```
 
 ```{r}
+# GO Gene set enrichment analysis
 ego3 <- gseGO(geneList     = geneList_HvS,
               OrgDb        = org.Hs.eg.db,
               keyType = "UNIPROT",
@@ -50,8 +56,8 @@ ego3 <- gseGO(geneList     = geneList_HvS,
 ```
 
 ```{r}
-ego3 <- ego3[order(ego3$enrichmentScore), ]
-head(ego3, n=75)
+ego3_ordered <- ego3[order(ego3$enrichmentScore), ]
+head(ego3_ordered, n=75)
 ```
 ```{r}
 goplot(ego3)

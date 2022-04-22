@@ -18,6 +18,7 @@ library(stringr)
 
 ```{r}
 proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat2.RDS")
+colnames(proStat)
 ```
 
 #data exploration
@@ -56,10 +57,30 @@ Down_MvH <- filter(proStat, `Flag_A_Mild_vs_Healthy Control` == "-1")
 Down_MvS <- filter(proStat, `Flag_A_Mild_vs_Severe` == "-1")
 ```
 
+```{r}
+colnames(proStat)[which(names(proStat) == "P_value_A_Healthy Control_vs_Severe")] <- "P_value"
+colnames(proStat)[which(names(proStat) == "Fold_change_Healthy Control_vs_Severe")] <- "Fold_change"
+colnames(proStat)[which(names(proStat) == "Flag_A_Healthy Control_vs_Severe")] <- "Flag"
+
+filtered_stat <- filter(proStat, Flag != 0)
+
+mapped_stat <- string_db$map(filtered_stat, "Protein_Identifier", removeUnmappedRows = TRUE )
+
+mapped_stat_pval05 <- string_db$add_diff_exp_color( subset(mapped_stat, P_value<0.05), logFcColStr="Fold_change" )
+mapped_stat_pval05 <- mutate(mapped_stat_pval05, Fold_change_abs = abs(mapped_stat_pval05$Fold_change))
+mapped_stat_pval05 <- mapped_stat_pval05[order(mapped_stat_pval05$`Fold_change_abs`, decreasing = T), ]
+
+payload_id <- string_db$post_payload( mapped_stat_pval05$STRING_id, colors=mapped_stat_pval05$color )
+
+hits <- mapped_stat_pval05[1:150, ]
+
+string_db$plot_network(hits$STRING_id, payload_id = payload_id)
+```
+
 ## Creating STRINGdb object
 
 ```{r}
-string_db <- STRINGdb$new(version="11", species=9606, score_threshold=400, input_directory="")
+string_db <- STRINGdb$new(version="11", species=9606, score_threshold=400, input_directory="/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache")
 ```
 
 ```{r}
