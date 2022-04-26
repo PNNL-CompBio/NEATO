@@ -1,0 +1,58 @@
+---
+title: "PCSF"
+author: "Logan Lewis"
+date: '2022-04-23'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library("PCSF")
+library("tidyverse")
+library("UniProt.ws")
+library(org.Hs.eg.db)
+data("STRING")
+data("Tgfb_phospho")
+```
+
+```{r}
+proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat2.RDS")
+```
+
+```{r}
+proStat_HvS <- proStat %>% filter(`P_value_A_Healthy Control_vs_Severe`<0.05) %>% filter(`Flag_A_Healthy Control_vs_Severe` != 0)
+
+geneList_HvS <- abs(proStat_HvS[,10])
+gene_sym <- UniProt.ws::select(org.Hs.eg.db, proStat_HvS[,17], "SYMBOL","UNIPROT")
+gene_sym <- gene_sym[!duplicated(gene_sym[,1]),]
+names(geneList_HvS) = as.character(gene_sym[,2])
+```
+
+
+```{r}
+geneList_HvS <- sort(geneList_HvS, decreasing = T)
+terminals <- geneList_HvS[1:50]
+ppi <- construct_interactome(STRING)
+subnet <- PCSF(ppi, terminals, w = 2, b = 1, mu = 0.0005)
+plot(subnet, style = 1, node_size = 20, node_label_cex = 10, Terminal_node_color = "red")
+```
+
+```{r}
+res <- enrichment_analysis(subnet)
+plot(res$subnet)
+```
+
+```{r}
+library("PCSF")
+data("STRING")
+data("Tgfb_phospho")
+terminals <- Tgfb_phospho
+ppi <- construct_interactome(STRING)
+subnet <- PCSF_rand(ppi, terminals, n = 10, r = 0.1, w = 2, b = 1, mu = 0.0005)
+res <- enrichment_analysis(subnet)
+plot(res$subnet)
+```
+

@@ -62,6 +62,8 @@ colnames(proStat)[which(names(proStat) == "P_value_A_Healthy Control_vs_Severe")
 colnames(proStat)[which(names(proStat) == "Fold_change_Healthy Control_vs_Severe")] <- "Fold_change"
 colnames(proStat)[which(names(proStat) == "Flag_A_Healthy Control_vs_Severe")] <- "Flag"
 
+string_db <- STRINGdb$new(version="11", species=9606, score_threshold=400, input_directory="/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache")
+
 filtered_stat <- filter(proStat, Flag != 0)
 
 mapped_stat <- string_db$map(filtered_stat, "Protein_Identifier", removeUnmappedRows = TRUE )
@@ -74,7 +76,10 @@ payload_id <- string_db$post_payload( mapped_stat_pval05$STRING_id, colors=mappe
 
 hits <- mapped_stat_pval05[1:150, ]
 
-string_db$plot_network(hits$STRING_id, payload_id = payload_id)
+
+# png("/Users/lewi052/MAP/network.png", width = 1400, height = 1100)
+vari <- string_db$plot_network(hits$STRING_id, payload_id = payload_id)
+# dev.off()
 ```
 
 ## Creating STRINGdb object

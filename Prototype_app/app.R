@@ -2,6 +2,7 @@ library(shiny)
 library(tidyverse)
 library(STRINGdb)
 library(shinycssloaders)
+library(png)
 
 # defines elements of page
 ui <- fluidPage(
@@ -38,12 +39,19 @@ ui <- fluidPage(
       #main page (outputs on tabs)
       mainPanel(
         tabsetPanel(type = "tabs",
-                    tabPanel("Network Plot", 
+                    tabPanel("Network Plot",
+                             downloadButton("downloadPlot", "Download Plot"),
                              withSpinner(plotOutput("network", height = "700px")),
                              uiOutput("legend")),
-                    # dataTableOutput("top"),
-                    tabPanel("Enrichment", withSpinner(dataTableOutput("enrich"))),
-                    # plotOutput("clusters")
+                    tabPanel("Top Proteins",
+                             downloadButton("downloadTop", "Download Table"),
+                             withSpinner(dataTableOutput("top"))),
+                    tabPanel("Enrichment", 
+                             downloadButton("downloadEnrich", "Download Table"),
+                             withSpinner(dataTableOutput("enrich"))),
+                    tabPanel("Clusters",
+                             downloadButton("downloadClusters", "Download Plots"),
+                             withSpinner(plotOutput("clusters")))
         )
       )
   )
@@ -95,59 +103,100 @@ server <- function(input, output, session) {
     mapped_stat_pval05[1:included_prots, ]
   }
   })
+  net_plot <- function() {
+    string_db <- string_db()
+    hits <- hits()
+    payload_id <- string_db$post_payload( hits$STRING_id, colors=hits$color )
+    string_db$plot_network(hits$STRING_id, payload_id = payload_id)
+  }
   output$network <- renderPlot({
     #creating network (on button press)
     if(input$submit >= 1) {
-      string_db <- string_db()
-      hits <- hits()
-      payload_id <- string_db$post_payload( hits$STRING_id, colors=hits$color )
-      string_db$plot_network(hits$STRING_id, payload_id = payload_id)
+      net_plot()
     }
   })
+  output$downloadPlot <- downloadHandler(
+    filename = "NetworkPlot.png",
+    content = function(file) {
+      # png(file, width = 1400, height = 1100)
+      # net_plot()
+      # dev.off()
+      string_db <- string_db()
+      hits <- hits()
+      string_db$get_png(hits$STRING_id, payload_id = payload_id, file = file)
+    }
+  )
+  
   output$legend <- renderUI({
     #adding legend for STRINGdb network graphs
     if(input$submit >= 1) {
       tags$iframe(style="height:610px; width:100%", src="legend.png")
     }
   })
-  # output$top <- renderDataTable({
-  #   #calling all input variables so this output always updates appropriately
-  #   tmp <- input$Comparision
-  #   tmp <- input$included_prots
-  #   tmp <- input$score_thresh
-  #   #reading in file
-  #   wd <- getwd()
-  #   file <- paste(wd, "hits.RDS", sep = "/")
-  #   hits <- readRDS(file)
-  #   #Posting only some columns for clarity
-  #   hits[, c("Protein_Identifier", "STRING_id", "Fold_change", "Fold_change_abs", "P_value")]
-  # })
-  output$enrich <- renderDataTable({
-    #creates enrichment table
-    if(input$submit >= 1) {
+  output$top <- renderDataTable({
+    #Posting only some columns for clarity
+    hits <- hits()
+    hits[, c("Protein_Identifier", "STRING_id", "Fold_change", "Fold_change_abs", "P_value")]
+  })
+  output$downloadTop <- downloadHandler(
+    filename = "TopProteins.csv",
+    content = function(file) {
+      write.csv(hits(), file, row.names = F)
+    }
+  )
+  
+  enrich_table <- reactive({
     string_db <- string_db()
     hits <- hits()
     
     # string_db$set_background(user_data$Protein_Identifier)
     enrichment <- string_db$get_enrichment(hits$STRING_id)
     #cutting a couple of rows to make table fit on the screen
-    enrichment[, c("category", "term", "description", "number_of_genes", "number_of_genes_in_background", "p_value", "fdr")]
+    enrichment
+  })
+  output$enrich <- renderDataTable({
+    if(input$submit >= 1) {
+    #creates enrichment table
+    enrich_table <- enrich_table()
+    enrich_table[, c("category", "term", "description", "number_of_genes", "number_of_genes_in_background", "p_value", "fdr")]
     }
     })
-  # output$clusters <-  renderPlot({
-  #   tmp <- input$Comparision
-  #   tmp <- input$included_prots
-  # 
-  #   string_db <- STRINGdb$new(version="11", species=9606, score_threshold=input$score_thresh, input_directory="/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache")
-  #   wd <- getwd()
-  #   file <- paste(wd, "hits.RDS", sep = "/")
-  #   hits <- readRDS(file)
-  #   clustersList <- string_db$get_clusters(hits$STRING_id)
-  #   par(mfrow=c(2,2))
-  #   for(i in seq(1:4)){
-  #     string_db$plot_network(clustersList[[i]])
-  #   }
-  # })
+  output$downloadEnrich <- downloadHandler(
+    filename = "EnrichmentTable.csv",
+    content = function(file) {
+      write.csv(enrich_table(), file, row.names = F)
+    }
+  )
+  clusterList <- reactive({
+    string_db <- string_db()
+    hits <- hits()
+    string_db$get_clusters(hits$STRING_id)
+  })
+
+  output$clusters <-  renderPlot({
+    if (input$submit >= 1){
+    clusterList <- clusterList()
+    string_db <- string_db()
+    par(mfrow=c(2,2))
+    for(i in seq(1:4)){
+      string_db$plot_network(clusterList[[i]])
+    }
+    }
+  })
+
+  output$downloadClusters <- downloadHandler(
+    filename = "NetworkClusters.png",
+    content = function(file) {
+      png(file, width = 1400, height = 1100)
+      clusterList <- clusterList()
+      string_db <- string_db()
+      par(mfrow=c(2,2))
+      for(i in seq(1:4)){
+        string_db$plot_network(clusterList[[i]])
+      }
+      dev.off()
+    }
+  )
   
   #stops the app when browser window is closed
   session$onSessionEnded(stopApp)
