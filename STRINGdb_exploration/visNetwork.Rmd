@@ -53,9 +53,13 @@ colnames(nodes)  <- c("label", "id")
 # nodes$label <- nodes$id
 colnames(inters) <- c("from", "to")
 edges <- inters[,1:2]
+tst <- list(nodes = nodes,
+            edges = edges)
 ```
 
 ```{r}
+edges <- tst$edges
+nodes <- tst$nodes
 graph <- graph_from_data_frame(edges, directed = FALSE)
 
 cluster <- cluster_louvain(graph)
