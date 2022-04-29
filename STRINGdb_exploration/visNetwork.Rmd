@@ -1,0 +1,93 @@
+---
+title: "Untitled"
+author: "Logan Lewis"
+date: '2022-04-27'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(STRINGdb)
+library(visNetwork)
+library(igraph)
+library("UniProt.ws")
+library(org.Hs.eg.db)
+library(stringr)
+```
+
+```{r}
+proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat2.RDS")
+# links <- read.csv("string.human.protein.links.txt", sep = " ")
+```
+
+```{r}
+
+```
+
+```{r}
+colnames(proStat)[which(names(proStat) == "P_value_A_Healthy Control_vs_Severe")] <- "P_value"
+colnames(proStat)[which(names(proStat) == "Fold_change_Healthy Control_vs_Severe")] <- "Fold_change"
+colnames(proStat)[which(names(proStat) == "Flag_A_Healthy Control_vs_Severe")] <- "Flag"
+
+string_db <- STRINGdb$new(version="11", species=9606, score_threshold=400, input_directory="/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache")
+
+filtered_stat <- filter(proStat, Flag != 0)
+filtered_stat <- mutate(filtered_stat, Fold_change_abs = abs(filtered_stat$Fold_change))
+filtered_stat <- filtered_stat[order(filtered_stat$`Fold_change_abs`, decreasing = T), ]
+
+# gene_sym <- UniProt.ws::select(org.Hs.eg.db, filtered_stat[,17], "SYMBOL","UNIPROT")
+# gene_sym <- gene_sym[!duplicated(gene_sym[,1]),]
+# filtered_stat <- filtered_stat %>% mutate(gene_sym)
+filtered_stat <- string_db$map(filtered_stat, "Protein_Identifier", removeUnmappedRows = TRUE )
+inters <- string_db$get_interactions(filtered_stat$STRING_id)
+inters <- inters[!duplicated(inters),]
+
+
+nodes <- filtered_stat[1:150, c("Protein_Identifier", "STRING_id")]
+# nodes <- drop_na(nodes)
+colnames(nodes)  <- c("label", "id")
+# nodes$label <- nodes$id
+colnames(inters) <- c("from", "to")
+edges <- inters[,1:2]
+```
+
+```{r}
+graph <- graph_from_data_frame(edges, directed = FALSE)
+
+cluster <- cluster_louvain(graph)
+
+cluster_df <- data.frame(as.list(membership(cluster)))
+cluster_df <- as.data.frame(t(cluster_df))
+cluster_df$id <- rownames(cluster_df)
+cluster_df$id <- str_replace(cluster_df$id,"X","")
+
+nodes <- left_join(nodes, cluster_df, by = "id")
+colnames(nodes)[3] <- "group"
+```
+
+```{r}
+# edges$color <- "black"
+# edges$label <- "first"
+# edges_bis <- edges
+# edges_bis$color <- "red"
+# edges_bis$label <- "second"
+
+nodes <- nodes[!duplicated(nodes$id),]
+nodes <- nodes[order(nodes$group), ]
+nodes$group <- nodes$group %>% as.character %>% replace_na("No Group")
+nodes$value <- rep(10, nrow(nodes))
+visNetwork(nodes = nodes, edges = edges) %>%
+      visLayout(randomSeed = 123) %>% visIgraphLayout() %>% visOptions(selectedBy = list(variable = "group")) %>% visLegend()
+```
+
+```{r}
+got_graph <- string_db$get_subnetwork(filtered_stat$STRING_id)
+inters <- string_db$get_interactions(filtered_stat$Protein_Identifier)
+STRINGdb$help("get_graph")
+plot.igraph(got_graph)
+```
+

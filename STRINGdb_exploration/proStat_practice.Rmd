@@ -78,7 +78,7 @@ hits <- mapped_stat_pval05[1:150, ]
 
 
 # png("/Users/lewi052/MAP/network.png", width = 1400, height = 1100)
-vari <- string_db$plot_network(hits$STRING_id, payload_id = payload_id)
+string_db$plot_network(hits$STRING_id, payload_id = payload_id)
 # dev.off()
 ```
 
