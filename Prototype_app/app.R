@@ -1,24 +1,32 @@
 library(shiny)
+library(shinyjs)
 library(tidyverse)
 library(STRINGdb)
+library(visNetwork)
+library(igraph)
+library(stringr)
 library(shinycssloaders)
-library(png)
 
 # defines elements of page
 ui <- fluidPage(
+  useShinyjs(),
   #separates page into sidebar and main page
-  sidebarLayout(
+  navbarPage("",
+             tabPanel("",
     #sidebar contents (inputs)
-    sidebarPanel(
+    div( id ="Sidebar",sidebarPanel(
                 fileInput(inputId = "in_file",
                           label = "Upload file to be analysed",
                           accept = c(".csv",".rds"),
                           placeholder = ".csv or .rds file"),
+                textInput(inputId = "species",
+                          label = "Enter NCBI species identifier (e.g. Human is 9606). Identifier can be found here: https://www.ncbi.nlm.nih.gov/taxonomy",
+                          value = 9606),
                 textInput(inputId = "Protein",
                           label = "Enter column name containing the Protein Identifiers",
                           value = "Protein_Identifier"),
                 textInput(inputId = "P_val",
-                          label = "Enter column name containing p_values",
+                          label = "Enter column name containing P-values",
                           value = "P_value_A_Healthy Control_vs_Severe"),
                 textInput(inputId = "logFC",
                           label = "Enter column name containing Log Fold Change",
@@ -35,23 +43,21 @@ ui <- fluidPage(
                             value = 400),
                 actionButton(inputId = "submit",
                              label = "Sumbit Data"),
-  ),
+  )),
       #main page (outputs on tabs)
       mainPanel(
-        tabsetPanel(type = "tabs",
-                    tabPanel("Network Plot",
-                             downloadButton("downloadPlot", "Download Plot"),
-                             withSpinner(plotOutput("network", height = "700px")),
-                             uiOutput("legend")),
-                    tabPanel("Top Proteins",
-                             downloadButton("downloadTop", "Download Table"),
-                             withSpinner(dataTableOutput("top"))),
-                    tabPanel("Enrichment", 
-                             downloadButton("downloadEnrich", "Download Table"),
-                             withSpinner(dataTableOutput("enrich"))),
-                    tabPanel("Clusters",
-                             downloadButton("downloadClusters", "Download Plots"),
-                             withSpinner(plotOutput("clusters")))
+                actionButton("toggleSidebar", "Toggle sidebar"),
+                 fluidRow(
+                   column(width = 11, uiOutput("clust_select")),
+                   column(width = 1, uiOutput("downButton"))
+                 ),
+                 fluidRow(
+                   column(width = 6, withSpinner(visNetworkOutput("network", height = "700px"))),
+                   column(width = 6, withSpinner(dataTableOutput("enrich"))),
+                 ),
+                    # tabPanel("Clusters",
+                    #          downloadButton("downloadClusters", "Download Plots"),
+                    #          withSpinner(plotOutput("clusters", height = "900px")))
         )
       )
   )
@@ -59,11 +65,15 @@ ui <- fluidPage(
 
 #generates output based on input
 server <- function(input, output, session) {
+  observeEvent(input$toggleSidebar, {
+    shinyjs::toggle(id = "Sidebar")
+  })
   #program stores output of "reactive" functions so they don't have to reload when multiple elements call them
   string_db <- reactive({
     #creating stringdb object
     isolate(score_thresh <- input$score_thresh)
-    STRINGdb$new(version="11", species=9606, score_threshold=score_thresh, input_directory="/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache")
+    isolate(species <- as.numeric(input$species))
+    STRINGdb$new(version="11.5", species=species, score_threshold=score_thresh, input_directory="/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache")
   })
   hits <- reactive({
     #reading file and mapping proteins (on button press)
@@ -94,64 +104,77 @@ server <- function(input, output, session) {
     mapped_stat <- string_db$map(user_data, "Protein_Identifier", removeUnmappedRows = TRUE )
     
     #adding color based on up/down regulation
-    mapped_stat_pval05 <- string_db$add_diff_exp_color( subset(mapped_stat, P_value<0.05), logFcColStr="Fold_change" )
+    # mapped_stat_pval05 <- string_db$add_diff_exp_color( subset(mapped_stat, P_value<0.05), logFcColStr="Fold_change" )
     #sorting by absolute value of logFC
-    mapped_stat_pval05 <- mutate(mapped_stat_pval05, Fold_change_abs = abs(mapped_stat_pval05$Fold_change))
-    mapped_stat_pval05 <- mapped_stat_pval05[order(mapped_stat_pval05$`Fold_change_abs`, decreasing = T), ]
+    mapped_stat <- mutate(mapped_stat, Fold_change_abs = abs(mapped_stat$Fold_change))
+    mapped_stat <- mapped_stat[order(mapped_stat$`Fold_change_abs`, decreasing = T), ]
     
-    #grabbing proteins with the highest absolute logFC
-    mapped_stat_pval05[1:included_prots, ]
+    nodes <- mapped_stat[1: included_prots, c("Protein_Identifier", "STRING_id")]
+    colnames(nodes)  <- c("label", "id")
+    edges <- string_db$get_interactions(mapped_stat$STRING_id)
+    edges <- edges[!duplicated(edges),]
+    colnames(edges) <- c("from", "to")
+    list(nodes = nodes,
+         edges = edges[,1:2])
   }
   })
-  net_plot <- function() {
+
+#NETWORK PLOTS
+  #clustering nodes
+  nodes <- reactive({
     string_db <- string_db()
     hits <- hits()
-    payload_id <- string_db$post_payload( hits$STRING_id, colors=hits$color )
-    string_db$plot_network(hits$STRING_id, payload_id = payload_id)
-  }
-  output$network <- renderPlot({
+    nodes <- hits$nodes
+    
+    clusterList <- string_db$get_clusters(nodes$id)
+    
+    clusters <- c()
+    for (x in nodes$id) {
+      clusters <- c(clusters, grep(x, clusterList))
+    }
+    nodes$group <- clusters
+    
+    nodes <- nodes[!duplicated(nodes$id),]
+    nodes <- nodes[order(nodes$group), ]
+    for (y in nodes$group){
+      if (sum(nodes$group==y) == 1){
+        nodes$group[which(nodes$group == y)] <- "No Cluster"
+      }
+    }
+    nodes
+  })
+  output$network <- renderVisNetwork({
     #creating network (on button press)
     if(input$submit >= 1) {
-      net_plot()
-    }
-  })
-  output$downloadPlot <- downloadHandler(
-    filename = "NetworkPlot.png",
-    content = function(file) {
-      # png(file, width = 1400, height = 1100)
-      # net_plot()
-      # dev.off()
-      string_db <- string_db()
+      nodes <- nodes()
       hits <- hits()
-      string_db$get_png(hits$STRING_id, payload_id = payload_id, file = file)
-    }
-  )
-  
-  output$legend <- renderUI({
-    #adding legend for STRINGdb network graphs
-    if(input$submit >= 1) {
-      tags$iframe(style="height:610px; width:100%", src="legend.png")
+      edges <- hits$edges
+      visNetwork(nodes = nodes, edges = edges) %>% visNodes(value = 45, font = list(size = 40), scaling = list(max = 75)) %>%
+        visEdges(width = 5) %>% visLayout(randomSeed = 123) %>% visIgraphLayout() %>% 
+        visInteraction(navigationButtons = T) %>% 
+        visOptions(selectedBy = list(variable = "group")) %>% visLegend() %>%
+        visExport(type = "png", name = "exported-network", float = "right", 
+                  label = "Export PNG", background = "white", style= "")
     }
   })
-  output$top <- renderDataTable({
-    #Posting only some columns for clarity
-    hits <- hits()
-    hits[, c("Protein_Identifier", "STRING_id", "Fold_change", "Fold_change_abs", "P_value")]
+  #creates selection menu based on number of clusters found
+  observeEvent(input$submit, {
+    nodes <- nodes()
+    output$clust_select <- renderUI({
+      tagList(
+        selectInput("clusters", "Select a cluster", c("All Clusters", unique(nodes$group)))
+      )}
+    )
   })
-  output$downloadTop <- downloadHandler(
-    filename = "TopProteins.csv",
-    content = function(file) {
-      write.csv(hits(), file, row.names = F)
-    }
-  )
   
+#ENRICHMENT TABLE
   enrich_table <- reactive({
     string_db <- string_db()
-    hits <- hits()
-    
-    # string_db$set_background(user_data$Protein_Identifier)
-    enrichment <- string_db$get_enrichment(hits$STRING_id)
-    #cutting a couple of rows to make table fit on the screen
+    nodes <- nodes()
+    #filters enrichment table based on selected cluster
+    if (input$clusters != "All Clusters")
+      nodes <- filter(nodes, group == input$clusters)
+    enrichment <- string_db$get_enrichment(nodes$id)
     enrichment
   })
   output$enrich <- renderDataTable({
@@ -160,43 +183,48 @@ server <- function(input, output, session) {
     enrich_table <- enrich_table()
     enrich_table[, c("category", "term", "description", "number_of_genes", "number_of_genes_in_background", "p_value", "fdr")]
     }
-    })
+    }, options = list(pageLength = 10))
+  #creates Download button after table has loaded
+  observeEvent(input$submit, {
+    output$downButton <- renderUI({downloadButton("downloadEnrich", "Download Table")})
+  })
+  #operates Download button
   output$downloadEnrich <- downloadHandler(
     filename = "EnrichmentTable.csv",
     content = function(file) {
       write.csv(enrich_table(), file, row.names = F)
     }
   )
-  clusterList <- reactive({
-    string_db <- string_db()
-    hits <- hits()
-    string_db$get_clusters(hits$STRING_id)
-  })
-
-  output$clusters <-  renderPlot({
-    if (input$submit >= 1){
-    clusterList <- clusterList()
-    string_db <- string_db()
-    par(mfrow=c(2,2))
-    for(i in seq(1:4)){
-      string_db$plot_network(clusterList[[i]])
-    }
-    }
-  })
-
-  output$downloadClusters <- downloadHandler(
-    filename = "NetworkClusters.png",
-    content = function(file) {
-      png(file, width = 1400, height = 1100)
-      clusterList <- clusterList()
-      string_db <- string_db()
-      par(mfrow=c(2,2))
-      for(i in seq(1:4)){
-        string_db$plot_network(clusterList[[i]])
-      }
-      dev.off()
-    }
-  )
+  
+#CLUSTERS
+  # clusterList <- reactive({
+  #   string_db <- string_db()
+  #   hits <- hits()
+  #   string_db$get_clusters(hits$STRING_id)
+  # })
+  # output$clusters <-  renderPlot({
+  #   if (input$submit >= 1){
+  #   clusterList <- clusterList()
+  #   string_db <- string_db()
+  #   par(mfrow=c(2,2))
+  #   for(i in seq(1:4)){
+  #     string_db$plot_network(clusterList[[i]])
+  #   }
+  #   }
+  # })
+  # output$downloadClusters <- downloadHandler(
+  #   filename = "NetworkClusters.png",
+  #   content = function(file) {
+  #     png(file, width = 1400, height = 1100)
+  #     clusterList <- clusterList()
+  #     string_db <- string_db()
+  #     par(mfrow=c(2,2))
+  #     for(i in seq(1:4)){
+  #       string_db$plot_network(clusterList[[i]])
+  #     }
+  #     dev.off()
+  #   }
+  # )
   
   #stops the app when browser window is closed
   session$onSessionEnded(stopApp)
