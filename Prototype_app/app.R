@@ -11,8 +11,8 @@ library(shinycssloaders)
 ui <- fluidPage(
   useShinyjs(),
   #separates page into sidebar and main page
-  navbarPage("",
-             tabPanel("",
+  navbarPage("MAP Enrichment Analysis",
+             tabPanel("Data Upload",
     #sidebar contents (inputs)
     div( id ="Sidebar",sidebarPanel(
                 fileInput(inputId = "in_file",
@@ -30,44 +30,49 @@ ui <- fluidPage(
                           value = "P_value_A_Healthy Control_vs_Severe"),
                 textInput(inputId = "logFC",
                           label = "Enter column name containing Log Fold Change",
-                          value = "Fold_change_Healthy Control_vs_Severe"),
-                sliderInput(inputId = "included_prots",
-                            label = "Choose the number of proteins to include in the plot",
-                            min = 10,
-                            max = 500,
-                            value = 150),
-                sliderInput(inputId = "score_thresh",
-                            label = "Choose a confidence threshold for protein interactions",
-                            min = 100,
-                            max = 800,
-                            value = 400),
-                actionButton(inputId = "submit",
-                             label = "Sumbit Data"),
-  )),
-      #main page (outputs on tabs)
-      mainPanel(
-                actionButton("toggleSidebar", "Toggle sidebar"),
-                 fluidRow(
-                   column(width = 11, uiOutput("clust_select")),
-                   column(width = 1, uiOutput("downButton"))
-                 ),
-                 fluidRow(
-                   column(width = 6, withSpinner(visNetworkOutput("network", height = "700px"))),
-                   column(width = 6, withSpinner(dataTableOutput("enrich"))),
-                 ),
+                          value = "Fold_change_Healthy Control_vs_Severe"),)),
+            mainPanel(
+              dataTableOutput("previewTable")
+            )),
+    tabPanel("Network and Enrichment", 
+             sidebarPanel(sliderInput(inputId = "included_prots",
+                                      label = "Choose the number of proteins to include in the plot",
+                                      min = 10,
+                                      max = 500,
+                                      value = 150),
+                          sliderInput(inputId = "score_thresh",
+                                      label = "Choose a confidence threshold for protein interactions",
+                                      min = 100,
+                                      max = 800,
+                                      value = 400),
+                          actionButton(inputId = "submit",
+                                       label = "Sumbit Data"), width = 2),
+              mainPanel(# actionButton("toggleSidebar", "Toggle sidebar"),
+                        withSpinner(visNetworkOutput("network", height = "700px")),
+                        uiOutput("clust_select"),
+                        withSpinner(dataTableOutput("enrich")),
+                        uiOutput("downButton")
                     # tabPanel("Clusters",
                     #          downloadButton("downloadClusters", "Download Plots"),
                     #          withSpinner(plotOutput("clusters", height = "900px")))
         )
-      )
-  )
+      ),
+  inverse = T)
 )
 
 #generates output based on input
 server <- function(input, output, session) {
-  observeEvent(input$toggleSidebar, {
-    shinyjs::toggle(id = "Sidebar")
-  })
+  observeEvent(input$in_file, {
+  output$previewTable <- renderDataTable({
+    file <- input$in_file
+    ext <- tools::file_ext(file$datapath)
+    if(ext == "csv"){
+      user_data <- read.csv(file$datapath)
+    } else {
+      user_data <- readRDS(file$datapath)
+    }
+    user_data
+    }, options = list(pageLength = 10))})
   #program stores output of "reactive" functions so they don't have to reload when multiple elements call them
   string_db <- reactive({
     #creating stringdb object
@@ -152,7 +157,7 @@ server <- function(input, output, session) {
       visNetwork(nodes = nodes, edges = edges) %>% visNodes(value = 45, font = list(size = 40), scaling = list(max = 75)) %>%
         visEdges(width = 5) %>% visLayout(randomSeed = 123) %>% visIgraphLayout() %>% 
         visInteraction(navigationButtons = T) %>% 
-        visOptions(selectedBy = list(variable = "group")) %>% visLegend() %>%
+        visOptions(selectedBy = list(variable = "group")) %>% visLegend(zoom = F, ncol = 2) %>%
         visExport(type = "png", name = "exported-network", float = "right", 
                   label = "Export PNG", background = "white", style= "")
     }
@@ -165,6 +170,13 @@ server <- function(input, output, session) {
         selectInput("clusters", "Select a cluster", c("All Clusters", unique(nodes$group)))
       )}
     )
+  })
+  observeEvent(input$clusters, {
+    nodes = nodes()
+    if (input$clusters != "All Clusters") {
+      high_nodes <- filter(nodes, group == input$clusters)
+      visNetworkProxy("network") %>% visSelectNodes(high_nodes$id)
+    }
   })
   
 #ENRICHMENT TABLE
