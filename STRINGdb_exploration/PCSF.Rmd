@@ -37,6 +37,7 @@ geneList_HvS <- sort(geneList_HvS, decreasing = T)
 terminals <- geneList_HvS[1:50]
 ppi <- construct_interactome(STRING)
 subnet <- PCSF(ppi, terminals, w = 2, b = 1, mu = 0.0005)
+class(subnet)
 plot(subnet, style = 1, node_size = 20, node_label_cex = 10, Terminal_node_color = "red")
 ```
 

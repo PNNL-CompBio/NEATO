@@ -95,3 +95,35 @@ STRINGdb$help("get_graph")
 plot.igraph(got_graph)
 ```
 
+```{r}
+g <- make_ring(10)
+igraph:::tkplot(g)
+```
+
+```{r}
+clusterList <- string_db$get_clusters(nodes$id)
+
+clusters <- c()
+for (x in nodes$id) {
+  clusters <- c(clusters, grep(x, clusterList))
+}
+nodes$group <- clusters
+
+nodes <- nodes[!duplicated(nodes$id),]
+nodes <- nodes[order(nodes$group), ]
+for (y in nodes$group){
+  if (sum(nodes$group==y) == 1){
+    nodes$group[which(nodes$group == y)] <- "No Cluster"
+  }
+}
+
+visNetwork(nodes = nodes, edges = edges) %>% visNodes(value = 45, font = list(size = 40), scaling = list(max = 75)) %>%
+  visEdges(width = 5) %>% 
+  visInteraction(navigationButtons = T) %>%
+  visIgraphLayout(randomSeed = 123) %>%
+  visOptions(selectedBy = list(variable = "group")) %>% visLegend(zoom = F) %>%
+  visExport(type = "png", name = "exported-network", float = "right",
+            label = "Export PNG", background = "white", style= "")
+```
+
+
