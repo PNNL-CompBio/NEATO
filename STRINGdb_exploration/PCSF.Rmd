@@ -14,8 +14,13 @@ library("PCSF")
 library("tidyverse")
 library("UniProt.ws")
 library(org.Hs.eg.db)
+library(tidyverse)
 data("STRING")
 data("Tgfb_phospho")
+```
+
+```{r}
+columns(org.Hs.eg.db)
 ```
 
 ```{r}
@@ -28,6 +33,13 @@ proStat_HvS <- proStat %>% filter(`P_value_A_Healthy Control_vs_Severe`<0.05) %>
 geneList_HvS <- abs(proStat_HvS[,10])
 gene_sym <- UniProt.ws::select(org.Hs.eg.db, proStat_HvS[,17], "SYMBOL","UNIPROT")
 gene_sym <- gene_sym[!duplicated(gene_sym[,1]),]
+# for (i in 1:length(gene_sym[,2])) {
+#   if (is.na(gene_sym[i,2])) {
+#     gene_sym[i,2] <- gene_sym[i,1]
+#   }
+# }
+
+
 names(geneList_HvS) = as.character(gene_sym[,2])
 ```
 
@@ -43,7 +55,13 @@ plot(subnet, style = 1, node_size = 20, node_label_cex = 10, Terminal_node_color
 
 ```{r}
 res <- enrichment_analysis(subnet)
+class(res$subnet)
+en_tab <- res$enrich
 plot(res$subnet)
+```
+
+```{r}
+V(res$subnet)$group[V(res$subnet)$name == "ALK"]
 ```
 
 ```{r}
