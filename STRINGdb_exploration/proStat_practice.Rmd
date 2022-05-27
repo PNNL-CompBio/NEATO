@@ -93,12 +93,59 @@ length(unique(hits$Protein_Identifier))
 ```
 
 ```{r}
-# reading from file
+postFormSmart <- function(uri, ..., .params = list(), .opts = curlOptions(url = uri),
+                          curl = getCurlHandle(), style = 'HTTPPOST',
+                          .encoding = integer(), binary = NA, .checkParams = TRUE,
+                          .contentEncodeFun = curlEscape){
+
+    res = postForm(uri, ..., .params = .params, .opts = .opts,
+             curl = curl, style = style,
+             .encoding = .encoding, binary = binary, .checkParams = .checkParams,
+             .contentEncodeFun = .contentEncodeFun)
+  
+    
+    suppressWarnings( if(grepl("The document has moved", res)){
+    
+      begin <- regexpr("href",res)+6
+      mys2=substr(res, begin, 10000000)
+      end <- regexpr('"',mys2)-1
+      uriNew = substr(mys2, 1, end)
+      
+      res=postForm(uriNew, ..., .params = .params, .opts = .opts,
+               curl = curl, style = style,
+               .encoding = .encoding, binary = binary, .checkParams = .checkParams,
+               .contentEncodeFun = .contentEncodeFun)
+    } )
+    
+    return(res)
+  
+}
+```
+
+
+```{r}
+#converting given column names to known ones
 colnames(proStat)[which(names(proStat) == "P_value_A_Healthy Control_vs_Severe")] <- "P_value"
 colnames(proStat)[which(names(proStat) == "Fold_change_Healthy Control_vs_Severe")] <- "Fold_change"
 colnames(proStat)[which(names(proStat) == "Flag_A_Healthy Control_vs_Severe")] <- "Flag"
 
+#mapping based on UNIPROT identifier
+string_db <- STRINGdb$new(version="11.5", species=9606, score_threshold=400, input_directory="/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache")
+mapped_stat <- string_db$map(proStat, "Protein_Identifier", removeUnmappedRows = TRUE )
 
+#sorting by absolute value of logFC
+mapped_stat <- mutate(mapped_stat, Fold_change_abs = abs(mapped_stat$Fold_change))
+mapped_stat <- mapped_stat[order(mapped_stat$`Fold_change_abs`, decreasing = T), ]
+
+nodes <- mapped_stat[1:150, c("Protein_Identifier", "STRING_id", "Gene_Name")]
+
+identifiers = ""
+for (id in nodes$Protein_Identifier) {
+    identifiers = paste(identifiers, id, sep = "%0d")
+}
+urlStr = "https://string-db.org/api/tsv/network?"
+params <- list(identifiers = identifiers, species = 9606, required_score = 400)
+inters <- read_tsv(postFormSmart(urlStr, .params = params))
 ```
 
 

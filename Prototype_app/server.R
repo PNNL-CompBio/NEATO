@@ -6,6 +6,7 @@ server <- function(input, output, session) {
   string_db <- reactive({
     isolate(scoreThresh <- as.numeric(input$scoreThresh))
     isolate(species <- as.numeric(input$species))
+    input_directory <- paste(getwd(), "/STRINGdb_cache", sep = "")
     STRINGdb$new(version="11.5", species=species, score_threshold=scoreThresh, input_directory="/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache")
   })
   
@@ -21,52 +22,71 @@ server <- function(input, output, session) {
     userData
   })
   
+  filtUserData <- reactive({
+    isolate(userData <- readUserData())
+    isolate(Protein <- input$Protein)
+    isolate(logFC <- input$logFC)
+    isolate(P_val <- input$P_val)
+    
+    #converting given column names to known ones
+    colnames(userData)[which(names(userData) == Protein)] <- "Protein_Identifier"
+    colnames(userData)[which(names(userData) == logFC)] <- "Fold_change"
+    colnames(userData)[which(names(userData) == P_val)] <- "P_value"
+    
+    filtUserData <- filter(userData, P_value <= 0.05)
+    
+    #Adding a gene symbols column to use as a label
+    geneSym <- UniProt.ws::select(org.Hs.eg.db, filtUserData$Protein_Identifier, "SYMBOL","UNIPROT")
+    geneSym <- geneSym[!duplicated(geneSym[,1]),]
+    filtUserData <- mutate(filtUserData, geneSymbol = geneSym[,2])
+    
+    #Adding abolute value of log fold change column
+    filtUserData <- mutate(filtUserData, Fold_change_abs = abs(filtUserData$Fold_change))
+    filtUserData <- filtUserData[order(filtUserData$`Fold_change_abs`, decreasing = T), ]
+    
+    filtUserData
+  })
+  
   # Processing data, returns data for nodes and edges
   hits <- reactive({
     if (input$submit >= 1) {
       string_db <- string_db()
       
       #isolate makes it so element isn't reloaded when values change
-      isolate(userData <- readUserData())
-      isolate(includedProts <- input$includedProts)
-      isolate(Protein <- as.numeric(input$Protein))
-      isolate(logFC <- input$logFC)
-      isolate(P_val <- input$P_val)
+      isolate(filtUserData <- filtUserData())
+      isolate(includedProts <- as.numeric(input$includedProts))
+      isolate(scoreThresh <- as.numeric(input$scoreThresh))
+      isolate(species <- as.numeric(input$species))
+    
+      #mapping based on given identifier
+      mapped_stat <- string_db$map(filtUserData, "Protein_Identifier", removeUnmappedRows = TRUE )
       
-      #converting given column names to known ones
-      colnames(userData)[which(names(userData) == Protein)] <- "Protein_Identifier"
-      colnames(userData)[which(names(userData) == logFC)] <- "Fold_change"
-      colnames(userData)[which(names(userData) == P_val)] <- "P_value"
-      
-      #mapping based on UNIPROT identifier
-      mapped_stat <- string_db$map(userData, "Protein_Identifier", removeUnmappedRows = TRUE )
-      
-      #adding color based on up/down regulation
-      # mapped_stat_pval05 <- string_db$add_diff_exp_color( subset(mapped_stat, P_value<0.05), logFcColStr="Fold_change" )
       #sorting by absolute value of logFC
-      mapped_stat <- mutate(mapped_stat, Fold_change_abs = abs(mapped_stat$Fold_change))
       mapped_stat <- mapped_stat[order(mapped_stat$`Fold_change_abs`, decreasing = T), ]
       
-      nodes <- mapped_stat[1: includedProts, c("Protein_Identifier", "STRING_id", "Gene_Name")]
-      colnames(nodes)  <- c("label", "id", "name")
-      # nodes$names <- 
-      # print(length(unique(nodes$label)))
-      # name <- UniProt.ws::select(org.Hs.eg.db, nodes$label, "SYMBOL","UNIPROT")
-      # print(length(unique(name[,1])))
-      # name <- name[!duplicated(name[,1]),]
-      # for (i in 1:length(name[,2])) {
-      #   if (is.na(name[i,2])) {
-      #     name[i,2] <- name[i,1]
-      #   }
-      # }
-      # nodes$name <- name[,2]
+      #Grabbing columns (for now grabs hard coded "Gene_Names" column, will look into best way to handle this dynamically)
+      nodes <- mapped_stat[1:includedProts, c("geneSym", "STRING_id")]
       
-      edges <- string_db$get_interactions(mapped_stat$STRING_id)
+      #(For now) Directly querying the online STIRNG database for the interactions
+      identifiers = ""
+      for (id in nodes$STRING_id) {
+        identifiers = paste(identifiers, id, sep = "%0d")
+      }
+      urlStr = "https://string-db.org/api/tsv/network?"
+      params <- list(identifiers = identifiers, species = species, required_score = scoreThresh)
+      edges <- read_tsv(postFormSmart(urlStr, .params = params))
+      
+      colnames(nodes)  <- c("label", "id")
+      
+      # edges <- string_db$get_interactions(mapped_stat$STRING_id)
+      edges <- edges[, c("stringId_A", "stringId_B", "score")]
       edges <- edges[!duplicated(edges),]
       colnames(edges) <- c("from", "to", "width")
-      edges$width <- as.integer(as.numeric(edges$width)/100)
+      edges$width <- as.integer(as.numeric(edges$width)*20)
+
+      #returns a list of the nodes and edges
       list(nodes = nodes,
-           edges = edges[,1:2])
+           edges = edges)
     }
   })
   
@@ -103,7 +123,7 @@ server <- function(input, output, session) {
   observeEvent(input$inFile, {
   output$previewTable <- renderDataTable({
     userData <- readUserData()
-    userData
+    DT::datatable(userData, options = list(scrollX = TRUE))
     }, options = list(pageLength = 10))})
 
 #STRING NETWORK
@@ -112,13 +132,11 @@ server <- function(input, output, session) {
   output$network <- renderVisNetwork({
     if(input$submit >= 1) {
       nodes <- nodes()
-      colnames(nodes) <- c("x", "id", "label", "group")
       hits <- hits()
       edges <- hits$edges
       
       visNetwork(nodes = nodes, edges = edges) %>% 
         visNodes(value = 45, font = list(size = 40), scaling = list(max = 75), shadow = list(enabled = T, size = 10)) %>%
-        visEdges(width = 10) %>%
         visInteraction(navigationButtons = T) %>% visIgraphLayout(randomSeed = 123) %>% visLegend(zoom = F) %>%
         visEvents(select = "function(nodes) {
                 Shiny.onInputChange('sel_node', nodes.nodes);
@@ -128,12 +146,12 @@ server <- function(input, output, session) {
     }
   })
 
-  # Selects cluster of clicked node, and zooms in
+  # Selects cluster of clicked node
   observeEvent(input$sel_node,{
     nodes <- nodes()
     sel_node_row <- nodes[nodes$id == input$sel_node, ]
     node_cluster <- filter(nodes, group == sel_node_row$group)
-    visNetworkProxy("network") %>% visSelectNodes(node_cluster$id) %>% visFocus(id = input$sel_node, scale = 0.3)
+    visNetworkProxy("network") %>% visSelectNodes(node_cluster$id)
   })
   
 #ENRICHMENT TABLE
@@ -176,16 +194,16 @@ server <- function(input, output, session) {
   res_pcsf <- reactive({
     if (input$pcsfSubmit >= 1) {
     
-    isolate(userData <- readUserData())
+    isolate(filtUserData <- filtUserData())
     isolate(includedProts <- input$includedProts)
-    proStat_HvS <- userData %>% filter(`Flag_A_Healthy Control_vs_Severe` != 0)
     
-    geneList_HvS <- abs(proStat_HvS[,10])
-    gene_sym <- UniProt.ws::select(org.Hs.eg.db, proStat_HvS[,17], "SYMBOL","UNIPROT")
-    gene_sym <- gene_sym[!duplicated(gene_sym[,1]),]
-    names(geneList_HvS) = as.character(gene_sym[,2])
-    geneList_HvS <- sort(geneList_HvS, decreasing = T)
-    terminals <- geneList_HvS[1:includedProts]
+    #Grabbing top log-fold change proteins
+    print(colnames(filtUserData))
+    terminals <- filtUserData$Fold_change_abs[1:includedProts]
+    names(terminals) = as.character(filtUserData$geneSymbol[1:includedProts])
+    print(names(terminals))
+    
+    #making network and enrichment table
     ppi <- construct_interactome(STRING)
     subnet <- PCSF(ppi, terminals, w = 2, b = 1, mu = 0.0005)
     res <- enrichment_analysis(subnet)
@@ -194,7 +212,6 @@ server <- function(input, output, session) {
   output$pcsf <- renderVisNetwork({
     if (input$pcsfSubmit >= 1) {
     res <- res_pcsf()
-    class(res$subnet)
     visIgraph(res$subnet) %>% visNodes(value = 45, font = list(size = 40), scaling = list(max = 75), shadow = list(enabled = T, size = 10)) %>%
       visInteraction(navigationButtons = T) %>% visLegend(zoom = F) %>%
       visEvents(select = "function(nodes) {
@@ -205,6 +222,7 @@ server <- function(input, output, session) {
   }})
   
   observeEvent(input$pcsf_node,{
+    #Selecing a cluster based on click
     res <- res_pcsf()
     pcsfSelGroup <<- V(res$subnet)$group[V(res$subnet)$name == input$pcsf_node]
     selNodeList <- V(res$subnet)$name[V(res$subnet)$group == pcsfSelGroup]
@@ -212,6 +230,7 @@ server <- function(input, output, session) {
   })
   
   output$pcsf_enrich <- renderDataTable({
+    #displayihng enrichment table
     res <- res_pcsf()
     if (!is.null(input$pcsf_node)) {
       res$enrich <- dplyr::filter(res$enrich, res$enrich$Cluster == pcsfSelGroup)
@@ -220,6 +239,7 @@ server <- function(input, output, session) {
   }, options = list(pageLength = 10))
   
   observeEvent(input$pcsfSubmit, {
+    #creating enrichment table download button
     output$downPCSFButton <- renderUI({downloadButton("downloadPCSF", "Download Table")})
   })
   
