@@ -11,6 +11,8 @@ library(shinydashboard)
 library(PCSF)
 library(org.Hs.eg.db)
 library(DT)
+library(leapR)
+data(ncipid)
 data(STRING)
 
 postFormSmart <- function(uri, ..., .params = list(), .opts = curlOptions(url = uri),

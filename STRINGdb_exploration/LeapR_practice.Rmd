@@ -1,0 +1,122 @@
+---
+title: "leapR"
+author: "Logan Lewis"
+date: '2022-05-27'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(leapR)
+library(org.Hs.eg.db)
+library(STRINGdb)
+library(tidyverse)
+data(protdata)
+data(ncipid)
+```
+
+```{r}
+# in this example we construct some modules from the hierarchical clustering of the
+#     data
+protdata_naf = as.matrix(protdata)
+
+# hierarchical clustering is not too happy with lots of missing values
+#    so we'll do a zero fill on this to get the modules
+protdata_naf[which(is.na(protdata_naf))] = 0
+
+# construct the hierarchical clustering using the 'wardD' method, which
+#    seems to give more even sized modules
+protdata_hc = hclust(dist(protdata_naf), method="ward.D2")
+
+# arbitrarily we'll chop the clusters into 5 modules
+modules = cutree(protdata_hc, k=5)
+
+##sara: created list
+clusters = lapply(unique(modules),function(x) names(which(modules==x)))
+
+# modules is a named list of values where each value is a module
+#         number and the name is the gene name
+
+# To do enrichment for one module (module 1 in this case) do this
+protdata.enrichment.sets.module_1 = leapR(geneset=ncipid, enrichment_method="enrichment_in_sets",
+                                             background=names(modules), 
+                                          targets=names(modules[which(modules==1)]))
+
+# To do enrichment on all modules and return the list of enrichment results tables do this
+protdata.enrichment.sets.modules = cluster_enrichment(geneset=ncipid, clusters=clusters, background=names(modules), sigfilter=0.5)
+
+knitr::kable(head(protdata.enrichment.sets.modules))
+```
+
+```{r}
+proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat2.RDS")
+GO_data <- read_tsv("/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache/GO_Biological_Process_2021.txt", col_names = F)
+colnames(proStat)[which(names(proStat) == "P_value_A_Healthy Control_vs_Severe")] <- "P_value"
+colnames(proStat)[which(names(proStat) == "Fold_change_Healthy Control_vs_Severe")] <- "Fold_change"
+colnames(proStat)[which(names(proStat) == "Flag_A_Healthy Control_vs_Severe")] <- "Flag"
+
+string_db <- STRINGdb$new(version="11.5", species=9606, score_threshold=400, input_directory="/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache")
+
+
+filtered_stat <- filter(proStat, proStat$P_value <= 0.05)
+
+geneSym <- UniProt.ws::select(org.Hs.eg.db, filtered_stat$Protein_Identifier, "SYMBOL","UNIPROT")
+geneSym <- geneSym[!duplicated(geneSym[,1]),]
+filtered_stat <- mutate(filtered_stat, geneSymbol = geneSym[,2])
+
+mapped_stat <- string_db$map(filtered_stat, "Protein_Identifier", removeUnmappedRows = TRUE)
+
+mapped_stat <- mutate(mapped_stat, Fold_change_abs = abs(mapped_stat$Fold_change))
+mapped_stat <- mapped_stat[order(mapped_stat$`Fold_change_abs`, decreasing = T), ]
+
+nodes <- mapped_stat[1:1000, c("geneSymbol", "STRING_id")]
+colnames(nodes)  <- c("label", "id")
+
+#Uses stringdb's clusters
+clusterList <- string_db$get_clusters(nodes$id)
+
+#Finds the clusters assigned to node by stringdb
+clusters <- c()
+for (x in nodes$id) {
+  clusters <- c(clusters, grep(x, clusterList))
+}
+nodes$group <- clusters
+
+#Cannot have duplicated ids
+nodes <- nodes[!duplicated(nodes$id),]
+nodes <- nodes[order(nodes$group), ]
+
+#If there's only one member of the cluster, it's relabeled as "No Cluster"
+for (y in nodes$group){
+  if (sum(nodes$group==y) == 1){
+    nodes$group[which(nodes$group == y)] <- "No Cluster"
+  }
+}
+```
+
+```{r}
+clust1enrich = leapR(geneset=ncipid, enrichment_method="enrichment_in_sets",
+                                             background=nodes$label, 
+                                          targets=nodes$label[which(nodes$group==1)])
+```
+
+```{r}
+GO_header <- read_tsv("/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache/GO_Headers_2021.txt", col_names = F)
+GO_data <- read.csv("/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache/GO_data_2021.txt", header = F, sep = "\t")
+
+lens <- c()
+for (i in 1:nrow(GO_data)) {
+  lens <- c(lens, length(which(!is.na(GO_data[i,]))))
+}
+length(lens)
+
+GO_list <- list(names = as.matrix(GO_header),
+                desc = as.matrix(GO_header),
+                size = lens,
+                data = as.matrix(GO_data[, 3:length(GO_data)]))
+```
+

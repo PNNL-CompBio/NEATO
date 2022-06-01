@@ -25,10 +25,6 @@ proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat2.RDS")
 ```
 
 ```{r}
-
-```
-
-```{r}
 colnames(proStat)[which(names(proStat) == "P_value_A_Healthy Control_vs_Severe")] <- "P_value"
 colnames(proStat)[which(names(proStat) == "Fold_change_Healthy Control_vs_Severe")] <- "Fold_change"
 colnames(proStat)[which(names(proStat) == "Flag_A_Healthy Control_vs_Severe")] <- "Flag"
@@ -60,9 +56,12 @@ tst <- list(nodes = nodes,
 ```{r}
 edges <- tst$edges
 nodes <- tst$nodes
+
+edges <- edges[which(edges$to %in% nodes$id | edges$from %in% nodes$id), ]
+
 graph <- graph_from_data_frame(edges, directed = FALSE)
 
-cluster <- cluster_louvain(graph)
+cluster <- cluster_edge_betweenness(graph)
 
 cluster_df <- data.frame(as.list(membership(cluster)))
 cluster_df <- as.data.frame(t(cluster_df))

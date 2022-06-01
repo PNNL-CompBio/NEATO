@@ -6,7 +6,7 @@ server <- function(input, output, session) {
   string_db <- reactive({
     isolate(scoreThresh <- as.numeric(input$scoreThresh))
     isolate(species <- as.numeric(input$species))
-    input_directory <- paste(getwd(), "/STRINGdb_cache", sep = "")
+    # input_directory <- paste(getwd(), "/STRINGdb_cache", sep = "")
     STRINGdb$new(version="11.5", species=species, score_threshold=scoreThresh, input_directory="/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache")
   })
   
@@ -59,31 +59,32 @@ server <- function(input, output, session) {
       isolate(species <- as.numeric(input$species))
     
       #mapping based on given identifier
-      mapped_stat <- string_db$map(filtUserData, "Protein_Identifier", removeUnmappedRows = TRUE )
+      mapped_stat <- string_db$map(filtUserData, "Protein_Identifier", removeUnmappedRows = TRUE)
       
       #sorting by absolute value of logFC
       mapped_stat <- mapped_stat[order(mapped_stat$`Fold_change_abs`, decreasing = T), ]
       
-      #Grabbing columns (for now grabs hard coded "Gene_Names" column, will look into best way to handle this dynamically)
-      nodes <- mapped_stat[1:includedProts, c("geneSym", "STRING_id")]
-      
-      #(For now) Directly querying the online STIRNG database for the interactions
-      identifiers = ""
-      for (id in nodes$STRING_id) {
-        identifiers = paste(identifiers, id, sep = "%0d")
-      }
-      urlStr = "https://string-db.org/api/tsv/network?"
-      params <- list(identifiers = identifiers, species = species, required_score = scoreThresh)
-      edges <- read_tsv(postFormSmart(urlStr, .params = params))
-      
+      #Grabbing columns for nodes
+      nodes <- mapped_stat[1:includedProts, c("geneSymbol", "STRING_id")]
       colnames(nodes)  <- c("label", "id")
       
-      # edges <- string_db$get_interactions(mapped_stat$STRING_id)
-      edges <- edges[, c("stringId_A", "stringId_B", "score")]
+      #(For now) Directly querying the online STIRNG database for the interactions
+      # identifiers = ""
+      # for (id in nodes$STRING_id) {
+      #   identifiers = paste(identifiers, id, sep = "%0d")
+      # }
+      # urlStr = "https://string-db.org/api/tsv/network?"
+      # params <- list(identifiers = identifiers, species = species, required_score = scoreThresh)
+      # edges <- read_tsv(postFormSmart(urlStr, .params = params))
+      
+      edges <- string_db$get_interactions(mapped_stat$STRING_id)
+      # edges <- edges[, c("stringId_A", "stringId_B", "score")]
       edges <- edges[!duplicated(edges),]
       colnames(edges) <- c("from", "to", "width")
-      edges$width <- as.integer(as.numeric(edges$width)*20)
+      edges$width <- as.integer(as.numeric(edges$width)/100)
 
+      
+      
       #returns a list of the nodes and edges
       list(nodes = nodes,
            edges = edges)
@@ -95,27 +96,43 @@ server <- function(input, output, session) {
     string_db <- string_db()
     hits <- hits()
     nodes <- hits$nodes
+    edges <- hits$edges
     
     #Uses stringdb's clusters
-    clusterList <- string_db$get_clusters(nodes$id)
+    # clusterList <- string_db$get_clusters(nodes$id)
+    # 
+    # #Finds the clusters assigned to node by stringdb
+    # clusters <- c()
+    # for (x in nodes$id) {
+    #   clusters <- c(clusters, grep(x, clusterList))
+    # }
+    # nodes$group <- clusters
+    # 
+    # #Cannot have duplicated ids
+    # nodes <- nodes[!duplicated(nodes$id),]
+    # nodes <- nodes[order(nodes$group), ]
+    # 
+    # #If there's only one member of the cluster, it's relabeled as "No Cluster"
+    # for (y in nodes$group){
+    #   if (sum(nodes$group==y) == 1){
+    #     nodes$group[which(nodes$group == y)] <- "No Cluster"
+    #   }
+    # }
     
-    #Finds the clusters assigned to node by stringdb
-    clusters <- c()
-    for (x in nodes$id) {
-      clusters <- c(clusters, grep(x, clusterList))
-    }
-    nodes$group <- clusters
+    edges <- edges[which(edges$to %in% nodes$id | edges$from %in% nodes$id), ]
+
+    graph <- graph_from_data_frame(edges, directed = FALSE)
+
+    cluster <- cluster_edge_betweenness(graph)
+
+    cluster_df <- data.frame(as.list(membership(cluster)))
+    cluster_df <- as.data.frame(t(cluster_df))
+    cluster_df$id <- rownames(cluster_df)
+    cluster_df$id <- str_replace(cluster_df$id,"X","")
+
+    nodes <- left_join(nodes, cluster_df, by = "id")
+    colnames(nodes)[3] <- "group"
     
-    #Cannot have duplicated ids
-    nodes <- nodes[!duplicated(nodes$id),]
-    nodes <- nodes[order(nodes$group), ]
-    
-    #If there's only one member of the cluster, it's relabeled as "No Cluster"
-    for (y in nodes$group){
-      if (sum(nodes$group==y) == 1){
-        nodes$group[which(nodes$group == y)] <- "No Cluster"
-      }
-    }
     nodes
   })
   
@@ -163,17 +180,25 @@ server <- function(input, output, session) {
     #filters enrichment table based on selected cluster
     if (!is.null(input$sel_node)) {
       sel_node_row <- nodes[nodes$id == input$sel_node, ]
-      nodes <- filter(nodes, group == sel_node_row$group)
+      # nodes <- filter(nodes, group == sel_node_row$group)
+      clust1enrich = leapR(geneset=ncipid, enrichment_method="enrichment_in_sets",
+                           background=nodes$label,
+                           targets=nodes$label[which(nodes$group==sel_node_row$group)])
     }
-    enrichment <- string_db$get_enrichment(nodes$id)
-    enrichment
+    # enrichment <- string_db$get_enrichment(nodes$id)
+    else {
+      clust1enrich = leapR(geneset=ncipid, enrichment_method="enrichment_in_sets",
+                         background=nodes$label, 
+                         targets=nodes$label)
+  }
+    clust1enrich
   })
   
   #Displays enrichment table
   output$enrich <- renderDataTable({
     if(input$submit >= 1) {
     enrich_table <- enrich_table()
-    enrich_table[, c("category", "term", "description", "number_of_genes", "number_of_genes_in_background", "p_value", "fdr")]
+    # enrich_table[, c("category", "term", "description", "number_of_genes", "number_of_genes_in_background", "p_value", "fdr")]
     }
     }, options = list(pageLength = 10))
   
