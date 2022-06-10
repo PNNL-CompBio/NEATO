@@ -38,7 +38,15 @@ filtered_stat <- filtered_stat[order(filtered_stat$`Fold_change_abs`, decreasing
 # gene_sym <- UniProt.ws::select(org.Hs.eg.db, filtered_stat[,17], "SYMBOL","UNIPROT")
 # gene_sym <- gene_sym[!duplicated(gene_sym[,1]),]
 # filtered_stat <- filtered_stat %>% mutate(gene_sym)
-filtered_stat <- string_db$map(filtered_stat, "Protein_Identifier", removeUnmappedRows = TRUE )
+idents <- filtered_stat$Protein_Identifier
+mapping <- dplyr::filter(mapping_db, mapping_db %in% idents)
+mapping <- mapping[!duplicated(mapping$alias),]
+colnames(mapping) <- c("STRING_id","Protein_Identifier", "source")
+
+filtered_stat <- left_join(filtered_stat, mapping, by = "Protein_Identifier")
+
+filtered_stat <- drop_na(filtered_stat)
+# filtered_stat <- string_db$map(filtered_stat, "Protein_Identifier", removeUnmappedRows = TRUE )
 inters <- string_db$get_interactions(filtered_stat$STRING_id)
 inters <- inters[!duplicated(inters),]
 
@@ -47,8 +55,9 @@ nodes <- filtered_stat[1:150, c("Protein_Identifier", "STRING_id")]
 # nodes <- drop_na(nodes)
 colnames(nodes)  <- c("label", "id")
 # nodes$label <- nodes$id
-colnames(inters) <- c("from", "to")
-edges <- inters[,1:2]
+colnames(inters) <- c("from", "to", "width")
+edges <- inters
+edges$width <- as.numeric(edges$width)/100
 tst <- list(nodes = nodes,
             edges = edges)
 ```
@@ -57,19 +66,40 @@ tst <- list(nodes = nodes,
 edges <- tst$edges
 nodes <- tst$nodes
 
-edges <- edges[which(edges$to %in% nodes$id | edges$from %in% nodes$id), ]
+nodes$id %in% (edges[5,"to"])
+(edges[5,"to"]) %in% nodes$id
 
-graph <- graph_from_data_frame(edges, directed = FALSE)
+used_edges = data.frame("to" = character(),
+                        "from" = character(),
+                        "width" = numeric())
+for(i in 1:nrow(edges)){
+  if((edges[i,"to"] %in% nodes$id)){
+     if((edges[i,"from"] %in% nodes$id)){
+       used_edges[nrow(used_edges) + 1,] = edges[i,]
+  }}
+}
 
-cluster <- cluster_edge_betweenness(graph)
+# edges <- edges[which(edges$to %in% nodes$id | edges$from %in% nodes$id), ]
 
-cluster_df <- data.frame(as.list(membership(cluster)))
-cluster_df <- as.data.frame(t(cluster_df))
-cluster_df$id <- rownames(cluster_df)
-cluster_df$id <- str_replace(cluster_df$id,"X","")
+graph <- graph_from_data_frame(used_edges, directed = FALSE)
 
-nodes <- left_join(nodes, cluster_df, by = "id")
-colnames(nodes)[3] <- "group"
+cluster <- cluster_louvain(graph)
+
+V(graph)$group <- cluster$membership
+V(graph)$name
+
+# cluster_df <- data.frame(as.list(membership(cluster)))
+# cluster_df <- as.data.frame(t(cluster_df))
+# cluster_df$id <- rownames(cluster_df)
+# cluster_df$id <- str_replace(cluster_df$id,"X","")
+
+# nodes <- left_join(nodes, cluster_df, by = "id")
+# colnames(nodes)[3] <- "group"
+```
+
+
+```{r}
+visIgraph(graph) %>% visPhysics(enabled = F)
 ```
 
 ```{r}
@@ -88,6 +118,110 @@ visNetwork(nodes = nodes, edges = edges) %>%
 ```
 
 ```{r}
+enr <- function (clusters, mode = 0, gene_universe) 
+{
+    if (mode == 0) {
+        ENRICHR_ADDLIST = "http://amp.pharm.mssm.edu/Enrichr/addList"
+        ENRICHR_EXPORT = "http://amp.pharm.mssm.edu/Enrichr/export"
+        database = c("GO_Biological_Process_2015", "KEGG_2016", 
+            "Reactome_2016", "BioCarta_2016")
+        enrichment_result = as.list(1:length(clusters))
+        enrichment_result_complete = as.list(1:length(clusters))
+        for (a in 1:length(clusters)) {
+            genes = clusters[[a]]
+            request = list(list = paste(genes, collapse = "\n"))
+            complete_request = POST(ENRICHR_ADDLIST, body = request)
+            output = content(complete_request, "text", encoding = "ISO-8859-1")
+            userListID = strsplit(strsplit(output, "\n")[[1]][3], 
+                ": ")[[1]][2]
+            response_collection = NULL
+            for (b in 1:length(database)) {
+                url = paste0(ENRICHR_EXPORT, "?userListId=", 
+                  userListID, "&backgroundType=", database[b])
+                response = GET(url)
+                response = content(response, "text", encoding = "ISO-8859-1")
+                response = strsplit(response, "\n")[[1]]
+                response = lapply(response, function(x) {
+                  sp = strsplit(x, "\t")[[1]]
+                  return(sp)
+                })
+                if (length(response) > 1) {
+                  x = length(response) - 1
+                  m_resp = as.data.frame(matrix(0, nrow = x, 
+                    ncol = length(response[[1]])))
+                  colnames(m_resp) = response[[1]]
+                  for (i in 1:x) {
+                    m_resp[i, ] = response[[i + 1]]
+                  }
+                  response_collection = rbind(response_collection, 
+                    m_resp)
+                }
+            }
+            if (is.null(response_collection)) 
+                next
+            ordered_resp = data.frame(response_collection$Term, 
+                response_collection$`Adjusted P-value`, response_collection$`Combined Score`)
+            ordered_resp = ordered_resp[order(ordered_resp[, 
+                2]), ][1:15, ]
+            ordered_resp[, 2] = signif(as.numeric(as.character(ordered_resp[, 
+                2])), 3)
+            ordered_resp[, 3] = signif(as.numeric(as.character(ordered_resp[, 
+                3])), 3)
+            enrich = "<!DOCTYPE html> <html> <head> <style>\n      table {font-family: arial, sans-serif; font-size: 10px; border-collapse: collapse;width: 100%;} td,\n      th { border: 1px solid #dddddd; text-align: center; padding: 5px;}\n      tr:nth-child(even) {background-color: #dddddd;}\n      </style> </head> <body>\n      <table> <tr>  <th>Term</th> <th>Adjusted P-value</th> <th>Combined Score</th> </tr>"
+            for (i in 1:nrow(ordered_resp)) {
+                enrich = paste0(enrich, " <tr>")
+                for (j in 1:ncol(ordered_resp)) {
+                  enrich = paste0(enrich, "<td>", ordered_resp[i, 
+                    j], "</td>")
+                }
+                enrich = paste0(enrich, "</tr> ")
+            }
+            enrich = paste0(enrich, "</table> </body> </html>")
+            enrichment_result[[a]] = enrich
+            enrichment_result_complete[[a]] = response_collection
+        }
+    }
+    else {
+        enrichment_result = as.list(1:length(clusters))
+        enrichment_result_complete = as.list(1:length(clusters))
+        for (a in 1:length(clusters)) {
+            genes = clusters[[a]]
+            fg <- factor(as.integer(gene_universe %in% genes))
+            names(fg) <- gene_universe
+            tgData <- new("topGOdata", description = "simple_session", 
+                ontology = "BP", allGenes = fg, nodeSize = 15, 
+                annot = annFUN.org, mapping = "org.Hs.eg.db", 
+                ID = "symbol")
+            resultFisher <- runTest(tgData, algorithm = "classic", 
+                statistic = "fisher")
+            resultKS <- runTest(tgData, algorithm = "classic", 
+                statistic = "ks")
+            res_table_top15 <- GenTable(tgData, classicFisher = resultFisher, 
+                classicKS = resultKS, orderBy = "classicFisher", 
+                ranksOf = "classicFisher", topNodes = 15)
+            res_table_top1000 <- GenTable(tgData, classicFisher = resultFisher, 
+                classicKS = resultKS, orderBy = "classicFisher", 
+                ranksOf = "classicFisher", topNodes = 1000)
+            enrich = "<!DOCTYPE html> <html> <head> <style>\n      table {font-family: arial, sans-serif; font-size: 10px; border-collapse: collapse;width: 100%;} td,\n      th { border: 1px solid #dddddd; text-align: center; padding: 5px;}\n      tr:nth-child(even) {background-color: #dddddd;}\n      </style> </head> <body>\n      <table> <tr> <th>GO.ID</th> <th>Term</th> <th>Annotated</th> <th>Significant</th> <th>Expected</th> <th>classicFisher</th> <th>classicKS</th> </tr>"
+            for (i in 1:nrow(res_table_top15)) {
+                enrich = paste0(enrich, " <tr>")
+                for (j in 1:ncol(res_table_top15)) {
+                  enrich = paste0(enrich, "<td>", res_table_top15[i, 
+                    j], "</td>")
+                }
+                enrich = paste0(enrich, "</tr> ")
+            }
+            enrich = paste0(enrich, "</table> </body> </html>")
+            enrichment_result[[a]] = enrich
+            enrichment_result_complete[[a]] = res_table_top1000
+        }
+    }
+    return(list(enrichment_result, enrichment_result_complete))
+}
+```
+
+
+```{r}
 got_graph <- string_db$get_subnetwork(filtered_stat$STRING_id)
 inters <- string_db$get_interactions(filtered_stat$Protein_Identifier)
 STRINGdb$help("get_graph")
@@ -95,8 +229,7 @@ plot.igraph(got_graph)
 ```
 
 ```{r}
-g <- make_ring(10)
-igraph:::tkplot(g)
+test <- PCSF:::call_enr(cluster)
 ```
 
 ```{r}
@@ -125,4 +258,88 @@ visNetwork(nodes = nodes, edges = edges) %>% visNodes(value = 45, font = list(si
             label = "Export PNG", background = "white", style= "")
 ```
 
+```{r}
+function (subnet, mode = NULL, gene_universe) 
+{
+    if (missing(subnet)) 
+        stop("Need to specify the subnetwork obtained from the PCSF algorithm.")
+    if (class(subnet)[1] != "PCSF" || class(subnet)[2] != "igraph") 
+        stop("The subnetwork must be a \"PCSF\" object derived from an \"igraph\" class.")
+    if (!is.null(mode)) {
+        if (mode == 1 && missing(gene_universe)) 
+            stop("Need to specify a list of genes (vector of gene symbols) used as background in enrichment analysis by topGO package")
+    }
+    cat("  Performing enrichment analysis...\n\n")
+    clusters = cluster_edge_betweenness(subnet)
+    havingInternet <- function() {
+        if (.Platform$OS.type == "windows") {
+            ipmessage <- system("ipconfig", intern = TRUE)
+        }
+        else {
+            ipmessage <- system("ifconfig", intern = TRUE)
+        }
+        validIP <- "((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[.]){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
+        any(grep(validIP, ipmessage))
+    }
+    internet_connection <- havingInternet()
+    if (!is.null(mode)) {
+        if (mode == 0) {
+            if (internet_connection) {
+                cat("  Enrichment is being performed by EnrichR (http://amp.pharm.mssm.edu/Enrichr) API ...\n")
+                enrich = call_enr(clusters, mode = 0, gene_universe)
+            }
+            else {
+                stop("There is no working Internet connection, perform your enrichment with topGO package with mode=1 by providing background gene list ...\n")
+            }
+        }
+        else {
+            cat("  Enrichment is being performed by topGO package ...\n")
+            enrich = call_enr(clusters, mode = mode, gene_universe)
+        }
+    }
+    else {
+        if (internet_connection) {
+            cat("  Enrichment is being performed by EnrichR (http://amp.pharm.mssm.edu/Enrichr) API ...\n")
+            enrich = call_enr(clusters, mode = 0, gene_universe)
+        }
+        else {
+            stop("There is no working Internet connection, perform your enrichment with topGO package with mode=1 by providing background gene list ...\n")
+        }
+    }
+    if ("Compound" %in% V(subnet)$type) {
+        require(dplyr)
+        comps = data.frame(Drug = V(subnet)$name[which(V(subnet)$type == 
+            "Compound")], Cluster = clusters$membership[which(V(subnet)$type == 
+            "Compound")]) %>% dplyr::group_by(Cluster) %>% dplyr::summarise(DrugsByBetweenness = paste(Drug, 
+            collapse = ";"))
+    }
+    else {
+        comps <- NULL
+    }
+    enrichment = enrich[[1]]
+    enrichment_complete = enrich[[2]]
+    novals <- which(unlist(sapply(enrich[[2]], function(x) is.null(dim(x)))))
+    if (length(novals) > 0) 
+        enrichment_complete <- enrichment_complete[-novals]
+    enrichment_tab = do.call(rbind, lapply(c(1:length(enrichment_complete)), 
+        function(x) data.frame(Cluster = x, enrichment_complete[[x]])))
+    more.than.two = which(sapply(enrichment_tab$Genes, function(x) length(unlist(strsplit(x, 
+        split = ";"))) > 2))
+    if (length(more.than.two) > 0) 
+        enrichment_tab = enrichment_tab[more.than.two, ]
+    if (!is.null(comps)) 
+        enrichment_tab = enrichment_tab %>% dplyr::left_join(comps, 
+            by = "Cluster")
+    V(subnet)$group = clusters$membership
+    V(subnet)$title = paste0("Cluster ", clusters$membership, 
+        ": Enrichment analysis")
+    for (i in 1:length(V(subnet))) {
+        V(subnet)$title[i] = paste0(V(subnet)$title[i], enrichment[[V(subnet)$group[i]]])
+    }
+    class(subnet) <- c("PCSFe", "igraph")
+    output = list(subnet, enrichment_tab)
+    names(output) = c("subnet", "enrichment")
+    return(output)
+}
+```
 

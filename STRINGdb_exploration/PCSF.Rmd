@@ -41,6 +41,25 @@ gene_sym <- gene_sym[!duplicated(gene_sym[,1]),]
 
 
 names(geneList_HvS) = as.character(gene_sym[,2])
+terminals <- geneList_HvS
+```
+
+````{r}
+colnames(proStat)[which(names(proStat) == "Fold_change_Healthy Control_vs_Severe")] <- "Fold_change"
+proStat <- mutate(proStat, Fold_change_abs = abs(proStat$Fold_change))
+proStat <- proStat[order(proStat$`Fold_change_abs`, decreasing = T), ]
+
+terminals <- proStat$Fold_change_abs[1:150]
+hits <- proStat[1:150, ]
+hits <- map_to_stringids(hits)
+names(terminals) = as.character(hits$STRING_id)
+
+ppi <- prepare_interactome()
+subnet <- PCSF(ppi, terminals, w = 2, b = 1, mu = 0.0005)
+names <- convert_to_hugo(unlist(V(subnet)$name))
+V(subnet)$name <- names
+class(subnet)
+visIgraph(subnet) %>% visIgraphLayout()
 ```
 
 
@@ -49,7 +68,7 @@ geneList_HvS <- sort(geneList_HvS, decreasing = T)
 terminals <- geneList_HvS[1:50]
 ppi <- construct_interactome(STRING)
 subnet <- PCSF(ppi, terminals, w = 2, b = 1, mu = 0.0005)
-class(subnet)
+V(subnet)$name
 plot(subnet, style = 1, node_size = 20, node_label_cex = 10, Terminal_node_color = "red")
 ```
 

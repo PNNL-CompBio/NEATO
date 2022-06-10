@@ -99,7 +99,7 @@ for (y in nodes$group){
 ```
 
 ```{r}
-clust1enrich = leapR(geneset=ncipid, enrichment_method="enrichment_in_sets",
+clust1enrich = leapR(geneset=GO_data, enrichment_method="enrichment_in_sets",
                                              background=nodes$label, 
                                           targets=nodes$label[which(nodes$group==1)])
 ```
@@ -118,5 +118,9 @@ GO_list <- list(names = as.matrix(GO_header),
                 desc = as.matrix(GO_header),
                 size = lens,
                 data = as.matrix(GO_data[, 3:length(GO_data)]))
+```
+
+```{r}
+GO_data <- read_gene_sets("/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache/GO_Biological_Process_2021.txt")
 ```
 

@@ -1,0 +1,50 @@
+---
+title: "database_practice"
+author: "Logan Lewis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+data <- read_tsv("/Users/lewi052/MAP/STRINGdb_exploration/STRINGdb_cache/9606.protein.aliases.v11.5.txt.gz")
+
+proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat2.RDS")
+```
+```{r}
+idents <- proStat$Protein_Identifier
+mapping <- dplyr::filter(data, data$alias %in% idents)
+mapping <- mapping[!duplicated(mapping$alias),]
+colnames(mapping) <- c("STRING_id","Protein_Identifier", "source")
+
+proStat <- left_join(proStat, mapping, by = "Protein_Identifier")
+
+proStat <- drop_na(proStat)
+# proStat <- filter(pStat, pStat$Protein_Identifier %in% mapping$alias)
+# proStat <- pStat[which(pStat$Protein_Identifier %in% mapping), ]
+# proStat <- mutate(proStat, "STRING_id" = mapping$`#string_protein_id`)
+
+# mapStat <- string_db$map(pStat, "Protein_Identifier", removeUnmappedRows = TRUE )
+
+# mapping <- data.frame("STRING_id" = character(),
+#                       "Protein_Identifier" = character(),
+#                       "source" = character())
+# for(i in idents){
+#   if(i %in% data$alias){
+#     temp <- dplyr::filter(data, data$alias %in% i)
+#     mapping[nrow(mapping) + 1,] = temp[1,]
+#   } else {
+#     mapping[nrow(mapping) + 1,] = c(NA, i, NA)
+#   }
+# }
+
+```
+
+```{r}
+filtered_stat <- filter(proStat, Flag != 0)
+filtered_stat <- mutate(filtered_stat, Fold_change_abs = abs(filtered_stat$Fold_change))
+filtered_stat <- filtered_stat[order(filtered_stat$`Fold_change_abs`, decreasing = T), ]
+```
+
