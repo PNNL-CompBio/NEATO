@@ -1,8 +1,9 @@
 library(shiny)
 # library(shinyjs)
-library(tidyverse)
+library(dplyr)
+library(tidyr)
 # library(RCurl)
-library(STRINGdb)
+# library(STRINGdb)
 library(visNetwork)
 library(igraph)
 library(shinycssloaders)
@@ -11,7 +12,6 @@ library(PCSF)
 library(DT)
 source("enrichment.R")
 source("String.R")
-data(STRING)
 
 # postFormSmart <- function(uri, ..., .params = list(), .opts = curlOptions(url = uri),
 #                           curl = getCurlHandle(), style = 'HTTPPOST',

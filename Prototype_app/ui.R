@@ -41,7 +41,10 @@ ui <- dashboardPage(
                         value = 150),
               textInput(inputId = "scoreThresh",
                         label = "Choose a score threshold for protein interactions",
-                        value = 400)),
+                        value = 400),
+              actionButton(inputId = "construct",
+                           label = "Construct Databases"),
+              withSpinner(textOutput("constructed"))),
               box(
               dataTableOutput("previewTable")
                                   )),

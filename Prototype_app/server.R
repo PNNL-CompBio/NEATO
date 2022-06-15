@@ -34,6 +34,24 @@ server <- function(input, output, session) {
     filtUserData
   })
   
+  mapping_db <- reactive({
+    isolate(species <- input$species)
+    make_mapping_db(species)
+  })
+  
+  inters_db <- reactive({
+    isolate(species <- input$species)
+    make_inters_db(species)
+  })
+  
+  
+  output$constructed <- renderText({
+    if(input$construct >= 1){
+    mapping_db()
+    inters_db()
+    "Databases have been constructed!"
+  }})
+  
   # Processing data, returns data for nodes and edges
   graph <- reactive({
     if (input$submit >= 1) {
@@ -41,11 +59,12 @@ server <- function(input, output, session) {
       isolate(filtUserData <- filtUserData())
       isolate(includedProts <- as.numeric(input$includedProts))
       isolate(scoreThresh <- as.numeric(input$scoreThresh))
-      isolate(species <- as.numeric(input$species))
+      isolate(mapping_db <- mapping_db())
+      isolate(inters_db <- inters_db())
     
       #mapping based on given identifier
       print("mapping proteins")
-      mapped_stat <- map_to_stringids(filtUserData)
+      mapped_stat <- map_to_stringids(filtUserData, mapping_db)
 
       
       # #sorting by absolute value of logFC
@@ -55,10 +74,10 @@ server <- function(input, output, session) {
       hits <- mapped_stat[1:includedProts, "STRING_id"]
       
       print("getting interactions")
-      edges <- get_interactions(hits, scoreThresh)
+      edges <- get_interactions(hits, scoreThresh, inters_db)
       
-      edges$names1 <- convert_to_hugo(edges$protein1)
-      edges$names2 <- convert_to_hugo(edges$protein2)
+      edges$names1 <- convert_to_genename(edges$protein1, mapping_db)
+      edges$names2 <- convert_to_genename(edges$protein2, mapping_db)
       
       colnames(edges) <- c("protein1", "protein2", "width", "from", "to")
       edges <- edges[,c("from", "to", "width", "protein1", "protein2")]
@@ -110,14 +129,15 @@ server <- function(input, output, session) {
   
   # Creates enrichment table
   enrich_table <- reactive({
+    isolate(species <- input$species)
     graph <- graph()
     #filters enrichment table based on selected cluster
     if (!is.null(input$sel_node)) {
       stringSelGroup <- V(graph)$group[V(graph)$name == input$sel_node]
-      clust_enrich = find_enrich(V(graph)$name, V(graph)$name[which(V(graph)$group == stringSelGroup)])
+      clust_enrich = find_enrich(V(graph)$name, V(graph)$name[which(V(graph)$group == stringSelGroup)], species)
     }
     else {
-      clust_enrich = find_enrich(V(graph)$name, V(graph)$name)
+      clust_enrich = find_enrich(V(graph)$name, V(graph)$name, species)
   }
     clust_enrich
   })
@@ -149,22 +169,24 @@ server <- function(input, output, session) {
     
     isolate(filtUserData <- filtUserData())
     isolate(includedProts <- input$includedProts)
+    isolate(mapping_db <- mapping_db())
+    isolate(inters_db <- inters_db())
     
     #Grabbing top log-fold change proteins
     terminals <- filtUserData$Fold_change_abs[1:includedProts]
     hits <- filtUserData[1:includedProts, ]
-    hits <- map_to_stringids(hits)
+    hits <- map_to_stringids(hits, mapping_db)
     names(terminals) = as.character(hits$STRING_id)
     
     #making network and enrichment table
-    ppi <- prepare_interactome()
+    ppi <- prepare_interactome(inters_db)
     length(terminals)
     subnet <- PCSF(ppi, terminals, w = 2, b = 1, mu = 0.0005)
     
     #Clustering and making names readable
     clusters <- cluster_edge_betweenness(subnet)
     V(subnet)$group <- clusters$membership
-    V(subnet)$name <- convert_to_hugo(V(subnet)$name)
+    V(subnet)$name <- convert_to_genename(V(subnet)$name, mapping_db)
     
     subnet
     }})
@@ -190,14 +212,15 @@ server <- function(input, output, session) {
   })
   
   enrich_table_pcsf <- reactive({
+    isolate(species <- input$species)
     subnet <- subnet()
     #filters enrichment table based on selected cluster
     if (!is.null(input$pcsf_node)) {
       pcsfSelGroup <- V(subnet)$group[V(subnet)$name == input$pcsf_node]
-      clust_enrich = find_enrich(V(subnet)$name, V(subnet)$name[which(V(subnet)$group == pcsfSelGroup)])
+      clust_enrich = find_enrich(V(subnet)$name, V(subnet)$name[which(V(subnet)$group == pcsfSelGroup)], species)
     }
     else {
-      clust_enrich = find_enrich(V(subnet)$name, V(subnet)$name)
+      clust_enrich = find_enrich(V(subnet)$name, V(subnet)$name, species)
     }
     clust_enrich
   })
