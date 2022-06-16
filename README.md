@@ -12,6 +12,6 @@ The above is the planned architecture of the app. The app will take proteomics d
 
 Copy this git repository and open ui.R, server.R, or global.R from the prototype_app directory in R studio
 
-'''devtools::install_github("Loglew12/shinyenrich")''' to install dependencies
+```devtools::install_github("Loglew12/shinyenrich")``` to install dependencies
 
 Click "Run app" in the top right corner of R Studio window.
