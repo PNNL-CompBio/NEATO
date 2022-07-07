@@ -1,7 +1,7 @@
 source("global.R")
 
 server <- function(input, output, session) {
-  
+
   # Reading in user uploaded file
   readUserData <- reactive({
     file <- input$inFile
@@ -13,45 +13,45 @@ server <- function(input, output, session) {
     }
     userData
   })
-  
+
   filtUserData <- reactive({
     isolate(userData <- readUserData())
     isolate(Protein <- input$Protein)
     isolate(logFC <- input$logFC)
     isolate(P_val <- input$P_val)
-    
+
     #converting given column names to known ones
     colnames(userData)[which(names(userData) == Protein)] <- "Protein_Identifier"
     colnames(userData)[which(names(userData) == logFC)] <- "Fold_change"
     colnames(userData)[which(names(userData) == P_val)] <- "P_value"
-    
+
     filtUserData <- filter(userData, P_value <= 0.05)
-    
+
     #Adding abolute value of log fold change column
     filtUserData <- mutate(filtUserData, Fold_change_abs = abs(filtUserData$Fold_change))
     filtUserData <- filtUserData[order(filtUserData$`Fold_change_abs`, decreasing = T), ]
-    
+
     filtUserData
   })
-  
+
   mapping_db <- reactive({
     isolate(species <- input$species)
     make_mapping_db(species)
   })
-  
+
   inters_db <- reactive({
     isolate(species <- input$species)
     make_inters_db(species)
   })
-  
-  
-  output$constructed <- renderText({
-    if(input$construct >= 1){
-    mapping_db()
-    inters_db()
-    "Databases have been constructed!"
-  }})
-  
+
+
+  # output$constructed <- renderText({
+  #   if(input$construct >= 1){
+  #   mapping_db()
+  #   inters_db()
+  #   "Databases have been constructed!"
+  # }})
+
   # Processing data, returns data for nodes and edges
   graph <- reactive({
     if (input$submit >= 1) {
@@ -61,24 +61,24 @@ server <- function(input, output, session) {
       isolate(scoreThresh <- as.numeric(input$scoreThresh))
       isolate(mapping_db <- mapping_db())
       isolate(inters_db <- inters_db())
-    
+
       #mapping based on given identifier
       print("mapping proteins")
       mapped_stat <- map_to_stringids(filtUserData, mapping_db)
 
-      
+
       # #sorting by absolute value of logFC
       # mapped_stat <- mapped_stat[order(mapped_stat$`Fold_change_abs`, decreasing = T), ]
-      
+
       #Grabbing columns for nodes
       hits <- mapped_stat[1:includedProts, "STRING_id"]
-      
+
       print("getting interactions")
       edges <- get_interactions(hits, scoreThresh, inters_db)
-      
+
       edges$names1 <- convert_to_genename(edges$protein1, mapping_db)
       edges$names2 <- convert_to_genename(edges$protein2, mapping_db)
-      
+
       colnames(edges) <- c("protein1", "protein2", "width", "from", "to")
       edges <- edges[,c("from", "to", "width", "protein1", "protein2")]
       edges$width <- as.numeric(edges$width)/100
@@ -86,11 +86,11 @@ server <- function(input, output, session) {
       graph <- graph_from_data_frame(edges, directed = FALSE)
       cluster <- cluster_edge_betweenness(graph)
       V(graph)$group <- cluster$membership
-      
+
       graph
     }
   })
-  
+
   # Reads in User uploaded file
   observeEvent(input$inFile, {
   output$previewTable <- renderDataTable({
@@ -99,13 +99,13 @@ server <- function(input, output, session) {
     }, options = list(pageLength = 10))})
 
 #STRING NETWORK
-  
+
   # Final processing and creating visNetwork on button press
   output$network <- renderVisNetwork({
     if(input$submit >= 1) {
       graph <- graph()
       print("making graph")
-      visIgraph(graph) %>% 
+      visIgraph(graph) %>%
         visNodes(value = 45, font = list(size = 40), scaling = list(max = 75), shadow = list(enabled = T, size = 10)) %>%
         visInteraction(navigationButtons = T) %>% visIgraphLayout(randomSeed = 123) %>% visLegend(zoom = F) %>%
         visEvents(select = "function(nodes) {
@@ -124,9 +124,9 @@ server <- function(input, output, session) {
     selNodeList <- V(graph)$name[V(graph)$group == stringSelGroup]
     visNetworkProxy("network") %>% visSelectNodes(selNodeList)
   })
-  
+
 #ENRICHMENT TABLE
-  
+
   # Creates enrichment table
   enrich_table <- reactive({
     isolate(species <- input$species)
@@ -146,9 +146,10 @@ server <- function(input, output, session) {
   output$enrich <- renderDataTable({
     if(input$submit >= 1) {
     enrich_table <- enrich_table()
-    # enrich_table[, c("category", "term", "description", "number_of_genes", "number_of_genes_in_background", "p_value", "fdr")]
+    enrich_table <- edit_e_table(enrich_table)
+    enrich_table
     }
-    }, options = list(pageLength = 10))
+    }, options = list(pageLength = 10), rownames = F)
 
   #creates Download button after table has loaded
   observeEvent(input$submit, {
@@ -166,34 +167,35 @@ server <- function(input, output, session) {
 #PCSF NETWORK
   subnet <- reactive({
     if (input$pcsfSubmit >= 1) {
-    
+
     isolate(filtUserData <- filtUserData())
     isolate(includedProts <- input$includedProts)
     isolate(mapping_db <- mapping_db())
     isolate(inters_db <- inters_db())
-    
+
     #Grabbing top log-fold change proteins
     terminals <- filtUserData$Fold_change_abs[1:includedProts]
     hits <- filtUserData[1:includedProts, ]
     hits <- map_to_stringids(hits, mapping_db)
     names(terminals) = as.character(hits$STRING_id)
-    
+
     #making network and enrichment table
     ppi <- prepare_interactome(inters_db)
     length(terminals)
     subnet <- PCSF(ppi, terminals, w = 2, b = 1, mu = 0.0005)
-    
+
     #Clustering and making names readable
     clusters <- cluster_edge_betweenness(subnet)
     V(subnet)$group <- clusters$membership
     V(subnet)$name <- convert_to_genename(V(subnet)$name, mapping_db)
-    
+
     subnet
     }})
-  
+
   output$pcsf <- renderVisNetwork({
     if (input$pcsfSubmit >= 1) {
     subnet <- subnet()
+    E(subnet)$value <- E(subnet)$weight
     visIgraph(subnet) %>% visNodes(value = 45, font = list(size = 40), scaling = list(max = 75), shadow = list(enabled = T, size = 10)) %>%
       visInteraction(navigationButtons = T) %>% visLegend(zoom = F) %>%
       visEvents(select = "function(nodes) {
@@ -202,7 +204,7 @@ server <- function(input, output, session) {
       visExport(type = "png", name = "exported-network", float = "right",
                                     label = "Export PNG", background = "white", style= "")
   }})
-  
+
   observeEvent(input$pcsf_node,{
     #Selecing a cluster based on click
     subnet <- subnet()
@@ -210,7 +212,7 @@ server <- function(input, output, session) {
     selNodeList <- V(subnet)$name[V(subnet)$group == pcsfSelGroup]
     visNetworkProxy("pcsf") %>% visSelectNodes(selNodeList)
   })
-  
+
   enrich_table_pcsf <- reactive({
     isolate(species <- input$species)
     subnet <- subnet()
@@ -224,18 +226,20 @@ server <- function(input, output, session) {
     }
     clust_enrich
   })
-  
+
   output$pcsf_enrich <- renderDataTable({
     if(input$pcsfSubmit >= 1) {
       enrich_table <- enrich_table_pcsf()
+      enrich_table <- edit_e_table(enrich_table)
+      enrich_table
     }
-  }, options = list(pageLength = 10))
-  
+  }, options = list(pageLength = 10), rownames = F)
+
   observeEvent(input$pcsfSubmit, {
     #creating enrichment table download button
     output$downPCSFButton <- renderUI({downloadButton("downloadPCSF", "Download Table")})
   })
-  
+
   #operates Download button
   output$downloadPCSF <- downloadHandler(
     filename = "PCSFEnrichmentTable.csv",

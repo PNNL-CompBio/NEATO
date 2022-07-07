@@ -16,6 +16,16 @@ library(reshape2)
 ```
 
 ```{r}
+data("pep_edata")
+data("pep_fdata")
+data("pep_emeta")
+head(pep_edata)
+head(pep_fdata)
+head(pep_emeta)
+```
+
+
+```{r}
 data("pro_edata")
 dim(pro_edata)
 pro_edata[1:6,1:5]

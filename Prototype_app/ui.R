@@ -1,9 +1,9 @@
 # defines elements of page
 ui <- dashboardPage(
-  
+
   # HEADER
   dashboardHeader(title = "MAP Enrichment"),
-  
+
   # SIDEBAR
   dashboardSidebar(
     sidebarMenu(
@@ -12,11 +12,11 @@ ui <- dashboardPage(
       menuItem("PCSF", tabName = "PCSF")
     )
   ),
-  
+
   # BODY CONTENT
   dashboardBody(
     tabItems(
-      
+
       # PAGE 1: Data Upload
       tabItem(tabName = "Data_Upload",
               box(
@@ -41,10 +41,10 @@ ui <- dashboardPage(
                         value = 150),
               textInput(inputId = "scoreThresh",
                         label = "Choose a score threshold for protein interactions",
-                        value = 400),
-              actionButton(inputId = "construct",
-                           label = "Construct Databases"),
-              withSpinner(textOutput("constructed"))),
+                        value = 400)),
+              # actionButton(inputId = "construct",
+              #              label = "Construct Databases"),
+              # withSpinner(textOutput("constructed"))),
               box(
               dataTableOutput("previewTable")
                                   )),
@@ -55,7 +55,7 @@ ui <- dashboardPage(
                   withSpinner(dataTableOutput("enrich")),
                   uiOutput("downButton")
     ),
-      
+
       # PAGE 3: PCSF
       tabItem(tabName = "PCSF",
               actionButton(inputId = "pcsfSubmit", label = "Generate Plot"),

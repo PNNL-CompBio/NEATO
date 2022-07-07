@@ -49,7 +49,15 @@ protdata.enrichment.sets.module_1 = leapR(geneset=ncipid, enrichment_method="enr
 # To do enrichment on all modules and return the list of enrichment results tables do this
 protdata.enrichment.sets.modules = cluster_enrichment(geneset=ncipid, clusters=clusters, background=names(modules), sigfilter=0.5)
 
-knitr::kable(head(protdata.enrichment.sets.modules))
+head(protdata.enrichment.sets.modules)
+```
+
+```{r}
+colnames(protdata.enrichment.sets.module_1)
+pesm <- protdata.enrichment.sets.module_1[c("ingroup_n", "pvalue", "BH_pvalue")]
+pesm <- filter(pesm, ingroup_n > 0)
+colnames(pesm) <- c("`Number in Ingorup`, P-value, `BH Adjusted Pvalue`")
+pesm
 ```
 
 ```{r}

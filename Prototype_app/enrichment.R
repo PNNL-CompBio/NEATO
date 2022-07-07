@@ -16,3 +16,12 @@ find_enrich <- function(background, targets, species){
   leapR(geneset=enrich_db, enrichment_method="enrichment_in_sets",
                      background=background,
                      targets=targets)}
+
+edit_e_table <- function(enrich_table){
+  enrich_table <- enrich_table[c("ingroup_n", "pvalue", "BH_pvalue")]
+  enrich_table <- filter(enrich_table, ingroup_n > 0)
+  colnames(enrich_table) <- c("Number in Ingorup", "P-value", "BH Adjusted Pvalue")
+  enrich_table <- data.frame(`Enrichment Terms` = row.names(enrich_table), enrich_table)
+  rownames(enrich_table) <- NULL
+  return(enrich_table)
+}
