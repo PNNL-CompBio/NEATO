@@ -1,0 +1,21 @@
+version: "3"
+services:
+  enrich_app:
+    build: .
+    ports: 
+      - 8080:8080
+    volumes:
+      - inters:/idata
+      - enrich:/edata
+  inters_db:
+    build: ./STRING_db
+    volumes:
+      - inters:/idata
+  enrich_db:
+    build: ./Enrichment_db
+    volumes:
+      - enrich:/edata
+
+volumes:
+  inters:
+  enrich:

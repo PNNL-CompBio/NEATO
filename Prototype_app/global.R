@@ -1,5 +1,7 @@
 library(shiny)
+library(shinyWidgets)
 # library(shinyjs)
+library(shinyBS)
 library(dplyr)
 library(tidyr)
 # library(RCurl)

@@ -12,29 +12,22 @@ RUN apt-get update && apt-get install -y \
     libglpk-dev \
     libmagick++-dev \
     libharfbuzz-dev \
-    libfribidi-dev
+    libfribidi-dev \
+    libgit2-dev
 
 # RUN R -e "install.packages('devtools')"
 # RUN R -e "library(devtools)"
-# RUN R -e "devtools::install_github('Loglew12/shinyenrich')"
-
-# Install packages from package install script 
-# COPY Install_Packages_Linux.R /srv/shiny/
-# WORKDIR /srv/shiny/
-# RUN Rscript "Install_Packages_Linux.R" 
 
 COPY . /app
 WORKDIR /app
 
-# ENV RENV_VERSION 0.15.5
-RUN R -e "install.packages('usethis', dependencies=TRUE, repos='http://cran.rstudio.com/')"
-RUN R -e "install.packages('roxygen2', dependencies=TRUE, repos='http://cran.rstudio.com/')"
-RUN R -e "install.packages('rversions', dependencies=TRUE, repos='http://cran.rstudio.com/')"
+# RUN R -e "install.packages('usethis', dependencies=TRUE, repos='http://cran.rstudio.com/')"
+# RUN R -e "install.packages('roxygen2', dependencies=TRUE, repos='http://cran.rstudio.com/')"
+# RUN R -e "install.packages('rversions', dependencies=TRUE, repos='http://cran.rstudio.com/')"
 RUN R -e "install.packages('devtools', dependencies=TRUE, repos='http://cran.rstudio.com/')"
 RUN R -e "install.packages('BiocManager', dependencies=TRUE, repos='http://cran.rstudio.com/')"
 RUN R -e "BiocManager::install('org.Hs.eg.db')"
 RUN R -e "BiocManager::install('topGO')"
-# RUN R -e "install.packages('devtools)"
 RUN R -e "devtools::install_github('Loglew12/shinyenrich')"
 
 # RUN R -e "install.packages('remotes', repos = c(CRAN = 'https://cloud.r-project.org'),  dependencies = TRUE)"
@@ -49,9 +42,3 @@ EXPOSE 8080
 
 # # run app on container start
 CMD ["R", "-e", "shiny::runApp('../app', host = '0.0.0.0', port = 8080)"]
-
-# # Allow permission
-# # RUN sudo chown -R shiny:shiny /srv/shiny-server .
-
-
-# CMD ["Rscript","run_app.R"]
