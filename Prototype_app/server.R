@@ -281,6 +281,52 @@ server <- function(input, output, session) {
       write.csv(edited_table_pcsf(), file, row.names = F)
     }
   )
+  output$complete <- renderVisNetwork({
+    if(input$sprasSubmit >= 1) {
+      #loading in needed inputs
+      isolate(filtUserData <- filtUserData())
+      isolate(species <- input$species)
+      isolate(inters_db <- inters_db())
+      isolate(mapping_db <- mapping_db())
+      isolate(includedProts <- as.numeric(input$includedProts))
+      isolate(scoreThresh <- as.numeric(input$scoreThresh))
+      
+      #grabbing the top absolute values log-fold change proteins, grabbing needed columns
+      hits <- filtUserData[1:includedProts, c("STRING_id", "Fold_change_abs")]
+      
+      #Getting interactions from the string_db that contain 'hits' proteins
+      edges <- get_interactions(hits$STRING_id, scoreThresh, inters_db)
+      colnames(edges) <- c("protein1", "protein2", "cost")
+      edges$cost <- as.character((1000 - edges$cost)/1000)
+      
+      #changing to appropriate column names and adding (arbitrary) sources and targets columns
+      colnames(hits) <- c("NODEID", "prize")
+      hits$sources <- rep("True", times = nrow(hits))
+      hits$targets <- rep("True", times = nrow(hits))
+      
+      #saving nodes and edges to files
+      write_tsv(hits, "/Users/lewi052/enrich_proj/spras/input2/shinyPrizes.tsv")
+      write_tsv(edges, "/Users/lewi052/enrich_proj/spras/input2/shinyEdges.tsv", col_names = F)
+      
+      #running the snakemake command
+      system("snakemake --cores 1 --configfile config/config_copy.yaml")
+      
+      #reading in the snakemake output and converting to igraph graph object
+      outData <- read.table("/Users/lewi052/enrich_proj/spras/output2/data0-omicsintegrator2-params-IV3IPCJ/pathway.txt")
+      graph <- graph_from_data_frame(outData)
+      
+      #clustering graph and changing node names to readable gene names
+      clusters <- cluster_edge_betweenness(graph)
+      V(graph)$group <- clusters$membership
+      V(graph)$name <- convert_to_genename(V(graph)$name, mapping_db)
+
+      #visualizing graph
+      visIgraph(graph) %>% visNodes(value = 45, size = 15, font = list(size = 40), scaling = list(max = 75), shadow = list(enabled = T, size = 10)) %>%
+        visInteraction(navigationButtons = T) %>% visLegend(zoom = F, ncol = 2) %>%
+        visExport(type = "png", name = "exported-network", float = "right",
+                  label = "Export PNG", background = "white", style= "")
+    }
+  })
   #stops the app when browser window is closed
   session$onSessionEnded(stopApp)
 }

@@ -1,0 +1,84 @@
+---
+title: "make_data"
+author: "Logan Lewis"
+date: '2022-08-04'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+proData <- readRDS("/Users/lewi052/enrich_proj/MAP/STRINGdb_exploration/proStat2.RDS")
+mapping_db <- read.csv("/Users/lewi052/enrich_proj/MAP/Prototype_app/STRING_db/9606.protein.aliases.v11.5.txt.gz", sep = "\t")
+```
+
+```{r}
+map_to_stringids <- function(filtUserData, mapping_db = mapping_db){
+  mapping <- filter(mapping_db, mapping_db$alias %in% filtUserData$Protein_Identifier)
+  mapping <- mapping[!duplicated(mapping$alias),]
+  colnames(mapping) <- c("STRING_id","Protein_Identifier", "source")
+
+  filtUserData <- left_join(filtUserData, mapping, by = "Protein_Identifier")
+
+  mapped_stat <- drop_na(filtUserData)
+  return(mapped_stat)
+}
+```
+
+```{r}
+proData <- map_to_stringids(proData, mapping_db)
+```
+
+```{r}
+outFile <- proData[,c('STRING_id','Fold_change_Healthy Control_vs_Severe')]
+colnames(outFile) <- c('NODEID', 'prize')
+outFile$sources <- rep("True", times = nrow(outFile))
+outFile$targets <- rep("True", times = nrow(outFile))
+outFile$prize <- as.character(abs(outFile$prize))
+# outFile <- outFile[1:150,]
+```
+
+```{r}
+write_tsv(outFile, "/Users/lewi052/enrich_proj/spras/input2/testPrizes.tsv")
+```
+
+```{r}
+get_interactions <- function(hits, scoreThresh, inter_db){
+  edges <- inter_db[which(inter_db$protein1 %in% hits & inter_db$protein2 %in% hits), c("protein1", "protein2", "combined_score")]
+  edges <- edges[which(edges$combined_score >= scoreThresh),]
+  return(edges)
+}
+```
+
+
+```{r}
+inters_file <- read.table("/Users/lewi052/enrich_proj/MAP/Prototype_app/STRING_db/9606.protein.links.v11.5.txt.gz", header = T)
+```
+
+```{r}
+#inters_file <- get_interactions(outFile, 0, inters_file)
+```
+
+```{r}
+colnames(inters_file) <- c("protein1", "protein2", "cost")
+inters_file$cost <- as.character((1000 - inters_file$cost)/1000)
+```
+
+```{r}
+write_tsv(inters_file, "/Users/lewi052/enrich_proj/spras/input2/testEdges.tsv", col_names = F)
+```
+
+```{r}
+outData <- read.table("/Users/lewi052/enrich_proj/spras/output2/data0-omicsintegrator2-params-IV3IPCJ/pathway.txt")
+```
+
+```{r}
+graph <- graph_from_data_frame(outData)
+```
+
+```{r}
+visIgraph(graph)
+```

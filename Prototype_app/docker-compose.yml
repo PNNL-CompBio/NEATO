@@ -8,6 +8,7 @@ services:
       - inters:/idata
       - enrich:/edata
   inters_db:
+  #replace
     build: ./STRING_db
     volumes:
       - inters:/idata

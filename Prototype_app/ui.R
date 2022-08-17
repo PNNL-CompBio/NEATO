@@ -9,7 +9,8 @@ ui <- dashboardPage(skin = "black",
     sidebarMenu(
       menuItem("Data Upload", tabName = "Data_Upload"),
       menuItem("STRING", tabName = "STRING"),
-      menuItem("PCSF", tabName = "PCSF")
+      menuItem("PCSF", tabName = "PCSF"),
+      menuItem("SPRAS_test", tabName = "SPRAS_test")
     )
   ),
 
@@ -101,5 +102,10 @@ ui <- dashboardPage(skin = "black",
                   withSpinner(dataTableOutput("pcsf_enrich")),
                   uiOutput("downPCSFButtonFull"),
                   uiOutput("downPCSFButtonCurrent")))
-      )
+      ),
+    # PAGE 4: SPRAS
+    tabItem(tabName = "SPRAS_test",
+            actionButton(inputId = "sprasSubmit", label = "Generate Files"),
+            withSpinner(visNetworkOutput("complete", height = "700px"))
+    )
 )))

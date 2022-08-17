@@ -24,7 +24,7 @@ columns(org.Hs.eg.db)
 ```
 
 ```{r}
-proStat <- readRDS("/Users/lewi052/MAP/STRINGdb_exploration/proStat2.RDS")
+proStat <- readRDS("/Users/lewi052/enrich_proj/MAP/STRINGdb_exploration/proStat2.RDS")
 ```
 
 ```{r}
@@ -78,14 +78,19 @@ names(terminals) = as.character(hits$STRING_id)
 
 ppi <- prepare_interactome(inters_db = inters_db)
 subnet <- PCSF(ppi, terminals, w = 2, b = 1, mu = 0.0005)
-names <- convert_to_genename(unlist(V(subnet)$name), mapping_db = mapping_db)
+names <- convert_to_genename(unlist(V(subnet)$name), mapping_db)
 V(subnet)$name <- names
 class(subnet)
 ```
 
 ```{r}
+print(V(subnet)$attribute)
+V(subnet)$shape <- ifelse(V(subnet)$type == "Terminal", "circle", "triangle")
+print(V(subnet))
 E(subnet)$value <- E(subnet)$weight
-visIgraph(subnet) %>% visIgraphLayout()
+visIgraph(subnet) %>% visIgraphLayout() %>% visLegend(addNodes = list(
+    list(label = "Terminal", shape = "circle"),
+    list(label = "Steiner", shape = "triangle")))
 ```
 
 
