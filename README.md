@@ -1,12 +1,11 @@
-NEATO: Network Enrichment Analysis Tool for Omics
+# NEATO: Network Enrichment Analysis Tool for Omics
 
 Welcome to the NEATO home page. This tool is still heavily under development as we build out additional functionality. 
 
-## Project Goal
-The goal of this project is to facilitate the creation of networks to enhance functional enrichment for transcriptomics, proteomics, and other types of high throughput data. To achieve this goal, we plan to build a modular [R Shiny]() application that can run locally, on your own server, or be accessed via the [EMSL cloud]() depending on your use case. 
+## Project Goals
+The primary goal of this project is to facilitate the creation of networks to enhance functional enrichment for transcriptomics, proteomics, and other types of high throughput data. To achieve this goal, we plan to build a modular [R Shiny]() application that can run locally, on your own server, or be accessed via the [EMSL cloud]() depending on your use case. We also hope to expand the use of network analysis tools and make them broadly interpretable.
 
-
-## Features
+## NEATO Features
 
 NEATO includes multiple features to enable end-to-end analysis as part of the MAP frameowrk.
 
