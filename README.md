@@ -10,20 +10,26 @@ The primary goal of this project is to facilitate the creation of networks to en
 NEATO includes multiple features to enable end-to-end analysis as part of the MAP frameowrk.
 
 ### Protein/Gene filtering
-We first enable filtering of the proteins/genes using p-values or log-fold change.
+We first enable filtering of the proteins/genes using p-values or log-fold change. For proteins, you can use the output of pMART to select the proteins of interest. 
 
 ### Network integration
 We allow for two types of network integration. The underlying network (as seen below in the architecture) is currently the STRING database. However, we plan to allow for additional networks in v2.
 
-- Network-based enrichment: this type of enrichment maps genes/proteins that are identified as statistically significant in a biological experiment and maps them to the network. This approach is akin to what was done in the latest [STRING publication](). 
-- OmicsIntegrator-based enrichment: this enrichment takes the network-based enrichment one step further to supplement the features identified by filtering step to identify proteins that might not have been captured.
+- Primary network: this type of enrichment maps genes/proteins that are identified as statistically significant in a biological experiment and maps them to the network. This approach is akin to what was done in the latest [STRING publication](). 
+- Augmented network: this enrichment takes the network-based enrichment one step further to supplement the features identified by filtering step to identify proteins that might not have been captured.
 
 ### Network clustering
+Once we have mapped the proteins or genes to the network (or augmented network) we employ Louvain clustering to group the proteins based on the edge connectivity. This enablues us to do functional enrichment on subgraphs of the network in addition to the entire graph.
 
 ### Functional enrichment
+Currently we searchf for GO biological pathways in which the selected proteins are more abundant in the pathway than we'd expect by chance. 
 
 ## Architecture
 
+The NEATO architecture is designed so that we can configure/update the following modules:
+- Network: currently we use the STRING entwork but can also use a kinase-substrate network or other type of interaction network
+- Functional enrichment mapping: we hope to augment the enrichment to allow for different species and different types of pathways
+- Network algorithm: we hope to add in additional network functionality
 
 ![image](https://user-images.githubusercontent.com/65473513/171519485-dfddf6a5-8cfe-4f0d-bbfa-d5f7b55160ef.png)
 
