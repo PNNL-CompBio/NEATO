@@ -1,22 +1,35 @@
 version: "3"
 services:
   enrich_app:
-    build: .
+    # build: .
+    image: enrich_app
+    privileged: true
     ports: 
       - 8080:8080
     volumes:
       - inters:/idata
+      - output_data:/out_data
       - enrich:/edata
+      # - /Users/lewi052/enrich_proj/MAP/app:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /Users/lewi052/enrich_proj/MAP/Docker_bridge:/app/Docker_bridge
+  omics-integrator-2:
+    # build: /Users/lewi052/enrich_proj/MAP/Prototype_app/spras/docker-wrappers/OmicsIntegrator2
+    image: reedcompbio/omics-integrator-2
+    volumes:
+      - output_data:/out_data
   inters_db:
-  #replace
-    build: ./STRING_db
+    #build: ./STRING_db
+    image: inters_db
     volumes:
       - inters:/idata
   enrich_db:
-    build: ./Enrichment_db
+    #build: ./Enrichment_db
+    image: enrich_db
     volumes:
       - enrich:/edata
 
 volumes:
   inters:
   enrich:
+  output_data:

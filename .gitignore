@@ -6,3 +6,6 @@ MAP_fun_SS
 *.png
 hierarchical-hotnet
 *.gz
+/app/
+/docker_bridge/
+spras/
