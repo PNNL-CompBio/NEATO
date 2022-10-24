@@ -8,7 +8,7 @@ ui <- dashboardPage(skin = "black",
   dashboardSidebar(
     sidebarMenu(
       menuItem("Data Upload", tabName = "Data_Upload"),
-      menuItem("STRING", tabName = "STRING"),
+      menuItem("Top Proteins", tabName = "STRING"),
       menuItem("PCSF", tabName = "PCSF"),
       menuItem("SPRAS_test", tabName = "SPRAS_test")
     )
@@ -30,31 +30,33 @@ ui <- dashboardPage(skin = "black",
                             accept = c(".csv",".rds"),
                             placeholder = ".csv or .rds file"),
                   textInput(inputId = "species",
-                            label = "Enter NCBI species identifier (e.g. Human is 9606). Identifier can be found here: https://www.ncbi.nlm.nih.gov/taxonomy",
+                            label = "Enter NCBI species identifier (e.g. Human is 9606).",
                             value = 9606),
                   textInput(inputId = "Protein",
                             label = "Enter column name containing the Protein Identifiers",
-                            value = "Protein_Identifier"),
-                  textInput(inputId = "P_val",
-                            label = "Enter column name containing P-values",
-                            value = "P_value_A_Healthy Control_vs_Severe"),
+                            value = "Protein_Identifier"
+                            ),
                   textInput(inputId = "logFC",
                             label = "Enter column name containing Log Fold Change",
-                            value = "Fold_change_Healthy Control_vs_Severe"),
+                            value = "Fold_change_Healthy Control_vs_Severe"
+                            ),
+                  textInput(inputId = "P_val",
+                            label = "Enter column name containing P-values",
+                            value = "P_value_A_Healthy Control_vs_Severe"
+                            ),
+                  textInput(inputId = "P_val_cut",
+                            label = "Choose P-value cutoff for the data",
+                            value = 0.05),
                   textInput(inputId = "includedProts",
                             label = "Choose the number of proteins to include in the plot",
                             value = 150),
                   textInput(inputId = "scoreThresh",
                             label = "Choose a score threshold for protein interactions",
                             value = 500)))),
-              # actionButton(inputId = "construct",
-              #              label = "Construct Databases"),
-              # withSpinner(textOutput("constructed"))),
               column(9,
                 bsCollapse(
                   id = "data_preview",
                   open = "Data Preview",
-
                   bsCollapsePanel("Data Preview",
                     dataTableOutput("previewTable")
                                     )))),
@@ -106,6 +108,7 @@ ui <- dashboardPage(skin = "black",
     # PAGE 4: SPRAS
     tabItem(tabName = "SPRAS_test",
             actionButton(inputId = "sprasSubmit", label = "Generate Files"),
-            withSpinner(visNetworkOutput("complete", height = "700px"))
+            withSpinner(visNetworkOutput("sprasNet", height = "700px"))
     )
+
 )))
