@@ -2,7 +2,7 @@
 ui <- dashboardPage(skin = "black",
 
   # HEADER
-  dashboardHeader(title = "MAP Enrichment"),
+  dashboardHeader(title = "NEATO"),
 
   # SIDEBAR
   dashboardSidebar(

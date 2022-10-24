@@ -28,7 +28,7 @@ RUN R -e "install.packages('devtools', dependencies=TRUE, repos='http://cran.rst
 RUN R -e "install.packages('BiocManager', dependencies=TRUE, repos='http://cran.rstudio.com/')"
 RUN R -e "BiocManager::install('org.Hs.eg.db')"
 RUN R -e "BiocManager::install('topGO')"
-RUN R -e "devtools::install_github('Loglew12/shinyenrich')"
+RUN R -e "devtools::install_github('PNNL-compbio/NEATO')"
 
 # RUN R -e "install.packages('remotes', repos = c(CRAN = 'https://cloud.r-project.org'),  dependencies = TRUE)"
 # RUN R -e "remotes::install_github('rstudio/renv@${RENV_VERSION}')"
