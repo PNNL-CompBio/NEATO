@@ -1,5 +1,12 @@
 version: "3"
 services:
+  minio: # Data storage container 
+      image: minio/minio:latest # Pull from dockerhub
+      container_name: minio-map
+      ports:
+          - "9000:9000"
+          - "9001:9001"
+      command: server /data --console-address ':9001'
   enrich_app:
     # build: .
     image: enrich_app
@@ -8,26 +15,44 @@ services:
       - 8080:8080
     volumes:
       - inters:/idata
-      - output_data:/out_data
+      # - output_data:/out_data
       - enrich:/edata
-      # - /Users/lewi052/enrich_proj/MAP/app:/app
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /Users/lewi052/enrich_proj/MAP/Docker_bridge:/app/Docker_bridge
-  omics-integrator-2:
-    # build: /Users/lewi052/enrich_proj/MAP/Prototype_app/spras/docker-wrappers/OmicsIntegrator2
-    image: reedcompbio/omics-integrator-2
-    volumes:
-      - output_data:/out_data
+      - /Users/lewi052/enrich_proj/NEATO/Prototype_app/global.R:/app/global.R #get rid of this when rebuilding
+      - /Users/lewi052/enrich_proj/NEATO/Prototype_app/server.R:/app/server.R
+      - /Users/lewi052/enrich_proj/NEATO/Prototype_app/ui.R:/app/ui.R
+      - /Users/lewi052/enrich_proj/NEATO/Prototype_app/minio_config.yml:/app/minio_config.yml #get rid of this when rebuilding
+      - /Users/lewi052/enrich_proj/NEATO/Prototype_app/redis_config.yml:/app/redis_config.yml
+      # - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SHINYPROXY_USERNAME=test_user # Required to create folder in minio
   inters_db:
-    #build: ./STRING_db
     image: inters_db
     volumes:
       - inters:/idata
   enrich_db:
-    #build: ./Enrichment_db
     image: enrich_db
     volumes:
       - enrich:/edata
+  neatodata-service:
+    image: neato_service # Build 
+    container_name: neato_service
+    volumes:
+      - inters:/idata
+      - enrich:/edata
+      - "/Users/lewi052/enrich_proj/NEATO/Prototype_app/NEATO-Service/minio_config.yml:/minio_config.yml" # Service needs to connect to minio
+      - "/Users/lewi052/enrich_proj/NEATO/Prototype_app/NEATO-Service/redis_config.yml:/redis_config.yml" # Service needs to connect to redis
+      - "/Users/lewi052/enrich_proj/NEATO/Prototype_app/NEATO-Service/rworker.R:/rworker.R"
+    environment:
+        - SHINYPROXY_USERNAME=test_user
+    ports:
+        - "8081:3838"
+  redis1: # The "job board" container
+    image: redis:latest # Pull from dockerhub
+    container_name: redis1
+    expose: 
+        - "6379"
+    ports: 
+        - "6379:6379"
 
 volumes:
   inters:

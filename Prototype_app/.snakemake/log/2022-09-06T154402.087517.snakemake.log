@@ -1,8 +1,0 @@
-Building DAG of jobs...
-MissingInputException in line 112 of /Users/lewi052/enrich_proj/MAP/Prototype_app/Snakefile:
-Missing input files for rule merge_input:
-    output: output2/data0-merged.pickle
-    wildcards: dataset=data0
-    affected files:
-        input2/shinyPrizes.tsv
-        input2/shinyEdges.tsv

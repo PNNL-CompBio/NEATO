@@ -86,6 +86,7 @@ ui <- dashboardPage(skin = "black",
       # PAGE 3: PCSF
       tabItem(tabName = "PCSF",
               actionButton(inputId = "pcsfSubmit", label = "Generate Plot"),
+              actionButton(inputId = "checkStatus", label = "Check Status"),
               bsCollapse(
                 open = c("Network", "Enrichment Table"),
                 multiple = T,
