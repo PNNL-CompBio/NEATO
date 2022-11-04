@@ -27,11 +27,11 @@ services:
       - SHINYPROXY_USERNAME=test_user # Required to create folder in minio
       - DEMO_VERSION="1"
   inters_db:
-    image: inters_db
+    image: loglew12/inters_db:latest
     volumes:
       - inters:/idata
   enrich_db:
-    image: enrich_db
+    image: loglew12/enrich_db:latest
     volumes:
       - enrich:/edata
   neatodata-service:
