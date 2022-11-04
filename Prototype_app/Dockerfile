@@ -49,13 +49,6 @@ RUN R -e "BiocManager::install('topGO')"
 RUN R -e "devtools::install_github('EMSL-Computing/mapDataAccess')"
 RUN R -e "devtools::install_github('Loglew12/shinyenrich')"
 
-# RUN R -e "install.packages('remotes', repos = c(CRAN = 'https://cloud.r-project.org'),  dependencies = TRUE)"
-# RUN R -e "remotes::install_github('rstudio/renv@${RENV_VERSION}')"
-# RUN Rscript -e "install.packages('renv', INSTALL_opts = c('--no-lock'), repos = 'https://cran.rstudio.com', dependencies = TRUE)"
-# RUN Rscript -e "options(renv.consent = TRUE)"
-# RUN Rscript -e "renv::consent(provided = TRUE)"
-# RUN Rscript -e "renv::restore()"
-
 # # expose port
 EXPOSE 8080
 
