@@ -63,7 +63,7 @@ server <- function(input, output, session) {
                        ))
   })
   enrich_db <- reactive({
-    if(input$sendService >= 1){
+    if(input$pcsfSubmit >= 1){
       isolate(species <- input$species)
       make_enrich_db(species)
     }
@@ -71,10 +71,11 @@ server <- function(input, output, session) {
 
   output$pcsf <- renderVisNetwork({
     if (input$pcsfSubmit >= 1) {
-      print(TheTable$Job)
+      isolate(algorithm <- input$algorithm)
       query <- parseQueryString(session$clientData$url_search)
       data <- get_data(con, query)
       subnet <- data[[2]]
+      if(algorithm == "inferredGraph") {
       visIgraph(subnet) %>% visNodes(value = 45, size = 15, font = list(size = 40), scaling = list(max = 75), shadow = list(enabled = T, size = 10)) %>%
         visInteraction(navigationButtons = T) %>% visLegend(zoom = F, ncol = 2, addNodes = list(
           list(label = "Terminal", shape = "dot"),
@@ -84,6 +85,15 @@ server <- function(input, output, session) {
                 ;}") %>%
         visExport(type = "png", name = "exported-network", float = "right",
                   label = "Export PNG", background = "white", style= "")
+      } else {
+        visIgraph(subnet) %>% visNodes(value = 45, size = 15, font = list(size = 40), scaling = list(max = 75), shadow = list(enabled = T, size = 10)) %>%
+          visInteraction(navigationButtons = T) %>% visLegend(zoom = F, ncol = 2) %>%
+          visEvents(select = "function(nodes) {
+                Shiny.onInputChange('pcsf_node', nodes.nodes);
+                ;}") %>%
+          visExport(type = "png", name = "exported-network", float = "right",
+                    label = "Export PNG", background = "white", style= "")
+      }
     }})
   observeEvent(input$checkStatus, {
     # TheTable$Job <- sendData()
@@ -111,7 +121,6 @@ server <- function(input, output, session) {
     data <- get_data(con, query)
     subnet <- data[[2]]
     filtUserData <- data[[1]]
-    print(filtUserData$GeneName)
     
     #making selection based on button click
     if(input$bgChoicePCSF == "full"){
