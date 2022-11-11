@@ -40,6 +40,10 @@ sendModalAlert <- function(message = "") {
 }
 con <- map_data_connection("minio_config.yml")
 
+
+
+
+
 # postFormSmart <- function(uri, ..., .params = list(), .opts = curlOptions(url = uri),
 #                           curl = getCurlHandle(), style = 'HTTPPOST',
 #                           .encoding = integer(), binary = NA, .checkParams = TRUE,

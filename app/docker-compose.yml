@@ -14,15 +14,7 @@ services:
     ports: 
       - 8080:8080
     volumes:
-      - inters:/idata
-      # - output_data:/out_data
       - enrich:/edata
-      - ./global.R:/app/global.R #get rid of this when rebuilding
-      - ./server.R:/app/server.R
-      - ./ui.R:/app/ui.R
-      - ./minio_config.yml:/app/minio_config.yml #get rid of this when rebuilding
-      - ./redis_config.yml:/app/redis_config.yml
-      - ./www/bootstrap.css:/app/www/bootstrap.css
     environment:
       - SHINYPROXY_USERNAME=test_user # Required to create folder in minio
       - DEMO_VERSION="1"
@@ -39,10 +31,8 @@ services:
     container_name: neato_service
     volumes:
       - inters:/idata
-      - enrich:/edata
       - "./NEATO-Service/minio_config.yml:/minio_config.yml" # Service needs to connect to minio
       - "./NEATO-Service/redis_config.yml:/redis_config.yml" # Service needs to connect to redis
-      - "./NEATO-Service/rworker.R:/rworker.R"
     environment:
         - SHINYPROXY_USERNAME=test_user
     ports:
@@ -58,4 +48,3 @@ services:
 volumes:
   inters:
   enrich:
-  output_data:

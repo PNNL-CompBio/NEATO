@@ -1,6 +1,3 @@
-
-library(readr)
-
 make_mapping_db <- function(species) {
   if(Sys.getenv("DEMO_VERSION") == "0"){
     mapping_file <- paste0("STRING_db/", species, ".protein.aliases.v11.5.txt.gz")
