@@ -37,7 +37,13 @@ The above is the planned architecture of the app. The app will take proteomics d
 
 ## How To Run
 
-We will support two distinct modes of running the tool.
+To run this app, make sure the Docker Desktop app is running and that you are logged in.
+Then run the following commands in the terminal.
+```
+git clone https://github.com/PNNL-CompBio/NEATO.git
+cd NEATO/app
+bash 
+```
  
 ### Run RShiny app locally
 
