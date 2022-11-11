@@ -1,4 +1,3 @@
-
 library(readr)
 
 make_mapping_db <- function(species) {

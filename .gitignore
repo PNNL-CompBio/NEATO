@@ -6,10 +6,10 @@ MAP_fun_SS
 *.png
 hierarchical-hotnet
 *.gz
-<<<<<<< HEAD
-.Rproj.user
-=======
-/app/
 /docker_bridge/
 spras/
->>>>>>> a06a191d389f2f6604645fd80a6db387abf863a6
+/NEATO_SS
+.DS_Store
+*/.DS_Store
+/STRINGdb_exploration
+
