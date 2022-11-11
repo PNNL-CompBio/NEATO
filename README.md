@@ -3,7 +3,7 @@
 Welcome to the NEATO home page. This tool is still heavily under development as we build out additional functionality. 
 
 ## Project Goals
-The primary goal of this project is to facilitate the creation of networks to enhance functional enrichment for transcriptomics, proteomics, and other types of high throughput data. To achieve this goal, we plan to build a modular [R Shiny]() application that can run locally, on your own server, or be accessed via the [EMSL cloud]() depending on your use case. We also hope to expand the use of network analysis tools and make them broadly interpretable.
+The primary goal of this project is to facilitate the creation of networks to enhance functional enrichment for transcriptomics, proteomics, and other types of high throughput data. To achieve this goal, we plan to build a modular [R Shiny](http://rstudio.com) application that can run locally, on your own server, or be accessed via the [EMSL cloud]() depending on your use case. We also hope to expand the use of network analysis tools and make them broadly interpretable.
 
 ## NEATO Features
 
@@ -19,7 +19,7 @@ We allow for two types of network integration. The underlying network (as seen b
 - Augmented network: this enrichment takes the network-based enrichment one step further to supplement the features identified by filtering step to identify proteins that might not have been captured.
 
 ### Network clustering
-Once we have mapped the proteins or genes to the network (or augmented network) we employ Louvain clustering to group the proteins based on the edge connectivity. This enablues us to do functional enrichment on subgraphs of the network in addition to the entire graph.
+Once we have mapped the proteins or genes to the network (or augmented network) we employ Louvain clustering to group the proteins based on the edge connectivity. This enables us to do functional enrichment on subgraphs of the network in addition to the entire graph.
 
 ### Functional enrichment
 Currently we searchf for GO biological pathways in which the selected proteins are more abundant in the pathway than we'd expect by chance. 
@@ -41,11 +41,15 @@ We will support two distinct modes of running the tool.
  
 ### Run RShiny app locally
 
-Copy this git repository and open ui.R, server.R, or global.R from the prototype_app directory in R studio
+To run this package locally requires the installation of [RStudio](http://rstudio.com). Once you have installed it you can run it locally as follows
 
-```devtools::install_github("Loglew12/shinyenrich")``` to install dependencies
+```
+require(devtools)
+devtools::install_github("PNNL-compbio/NEATO")
+``` 
 
 Click "Run app" in the top right corner of R Studio window.
 
-### Run via docker
-update with docker instructions.
+### How to run via Docker
+
+

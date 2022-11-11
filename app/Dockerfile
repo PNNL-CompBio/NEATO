@@ -19,7 +19,6 @@ RUN apt-get update && apt-get install -y \
     curl \
     software-properties-common
 
-
 COPY . /app
 
 RUN python3 -m venv /venv
@@ -48,6 +47,10 @@ RUN R -e "BiocManager::install('org.Hs.eg.db')"
 RUN R -e "BiocManager::install('topGO')"
 RUN R -e "devtools::install_github('EMSL-Computing/mapDataAccess')"
 RUN R -e "devtools::install_github('Loglew12/shinyenrich')"
+
+# ENV CONDA_DIR /opt/conda
+# RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+# /bin/bash ~/miniconda.sh -b -p /opt/conda
 
 # # expose port
 EXPOSE 8080
