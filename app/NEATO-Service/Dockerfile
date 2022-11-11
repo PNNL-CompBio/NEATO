@@ -18,7 +18,7 @@ COPY rworker.R .
 COPY enrichment.R .
 COPY String.R .
 COPY minio_config.yml .
-COPY redis_config.yml.yml .
+COPY redis_config.yml .
 
 # Install RWorker
 RUN R -e "options(renv.config.connect.timeout = 600)"
