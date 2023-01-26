@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript  
 library(rworker)
 library(reticulate)
+source("String.R")
 
 print("INFO: New Rworker thread started...")
 reticulate::use_virtualenv("/venv")
@@ -32,6 +33,9 @@ inferredGraph <- function(username,
                       includedProts,
                       scoreThresh) {
   
+  # Set status message
+  task_progress("Loading Packages")
+  
   # Load libraries
   library(mapDataAccess)
   library(dplyr)
@@ -40,7 +44,6 @@ inferredGraph <- function(username,
   library(visNetwork)
   library(igraph)
   library(PCSF)
-  source("enrichment.R")
   source("String.R")
   
   # Set status message
@@ -54,8 +57,14 @@ inferredGraph <- function(username,
   Sys.setenv("DEMO_VERSION" = "1")
   
   # Pull data
-  filtUserData <- get_data(miniocon, id)
-  message(id)
+  userData <- get_data(miniocon, id)
+  
+  #filtering by provided p-value
+  filtUserData <- filter(userData, P_value <= input$P_val_cut)
+  
+  #Adding absolute value of log fold change column
+  filtUserData <- mutate(filtUserData, Fold_change_abs = abs(filtUserData$Fold_change))
+  filtUserData <- filtUserData[order(filtUserData$`Fold_change_abs`, decreasing = T), ]
   
   # # Get tags
   # tags <- get_tags(miniocon, id)
@@ -93,13 +102,13 @@ inferredGraph <- function(username,
   
   # # Set tags
   # set_tags(miniocon, id, list("data" = tags$Dataset))
-  data_list <- list(filtUserData, subnet)
+  data_list <- list(filtUserData, subnet, species)
   
   data_id <- put_data(miniocon, data_list)
   
   # Return status
-  task_progress(paste0("Load filtered data with http://localhost:8080/?data=", data_id))
-  Sys.sleep(60)
+  task_progress(paste0("Load filtered data with https://map.emsl.pnnl.gov/app/neato/?data=", data_id))
+  Sys.sleep(210)
 }
 
 explicitGraph <- function(username,
@@ -107,6 +116,9 @@ explicitGraph <- function(username,
                           species,
                           includedProts,
                           scoreThresh) {
+  # Set status message
+  task_progress("Loading Packages")
+  
   library(mapDataAccess)
   library(dplyr)
   library(tidyr)
@@ -114,20 +126,27 @@ explicitGraph <- function(username,
   library(visNetwork)
   library(igraph)
   library(PCSF)
-  source("enrichment.R")
   source("String.R")
+  
+  # Set status message
   task_progress("Pulling data")
   
   # Connect to minio
   miniocon = map_data_connection("minio_config.yml")
   
   # Add shiny proxy username variable to global environment
-  Sys.setenv("SHINYPROXY_USERNAME" = username)
+  Sys.setenv(SHINYPROXY_USERNAME = username)
   Sys.setenv("DEMO_VERSION" = "1")
   
   # Pull data
-  filtUserData <- get_data(miniocon, id)
-  message(id)
+  userData <- get_data(miniocon, id)
+  
+  #filtering by provided p-value
+  filtUserData <- filter(userData, P_value <= input$P_val_cut)
+  
+  #Adding absolute value of log fold change column
+  filtUserData <- mutate(filtUserData, Fold_change_abs = abs(filtUserData$Fold_change))
+  filtUserData <- filtUserData[order(filtUserData$`Fold_change_abs`, decreasing = T), ]
   
   # # Get tags
   # tags <- get_tags(miniocon, id)
@@ -135,6 +154,7 @@ explicitGraph <- function(username,
   #Set status message
   task_progress("Making Mapping Databasbe")
   mapping_db <- make_mapping_db(species)
+  task_progress("Making Interactions Databasbe")
   inters_db <- make_inters_db(species)
   
   # Set status message
@@ -146,7 +166,7 @@ explicitGraph <- function(username,
   #Grabbing columns for nodes
   hits <- filtUserData[1:includedProts, "STRING_id"]
   
-  task_progress("getting interactions")
+  task_progress("Getting Interactions")
   edges <- get_interactions(hits, scoreThresh, inters_db)
   
   #Currently proteins with no interations are not included in the final graph
@@ -170,13 +190,15 @@ explicitGraph <- function(username,
   task_progress("Clustering graph")
   cluster <- cluster_edge_betweenness(graph)
   V(graph)$group <- cluster$membership
-  data_list <- list(filtUserData, graph)
+  
+  data_list <- list(filtUserData, graph, species)
   
   data_id <- put_data(miniocon, data_list)
+  testing <- get_data(miniocon, data_id)
   
   # Return status
-  task_progress(paste0("Load filtered data with http://localhost:8080/?data=", data_id))
-  Sys.sleep(60)
+  task_progress(paste0("Load filtered data with https://map.emsl.pnnl.gov/app/neato/?data=", data_id))
+  Sys.sleep(210)
 }
 
 # Register the task with redis

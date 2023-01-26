@@ -16,7 +16,6 @@ library(DT)
 library(readr)
 # library(pmartRdata)
 source("enrichment.R")
-source("String.R")
 
 
 # Register url, this is running in another docker container alongside this one

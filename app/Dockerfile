@@ -44,6 +44,7 @@ WORKDIR /app
 
 RUN R -e "options(renv.config.connect.timeout = 600)"
 RUN R -e "install.packages('devtools', dependencies=TRUE, repos='http://cran.rstudio.com/')"
+RUN R -e "install.packages('stringi', dependencies=TRUE, repos='http://cran.rstudio.com/')"
 RUN R -e "BiocManager::install('org.Hs.eg.db')"
 RUN R -e "BiocManager::install('topGO')"
 RUN R -e "devtools::install_github('EMSL-Computing/mapDataAccess')"
@@ -56,4 +57,3 @@ EXPOSE 8080
 
 # # run app on container start
 CMD ["R", "-e", "shiny::runApp('../app', host = '0.0.0.0', port = 8080)"]
-# ENTRYPOINT ["conda", "run", "-n", "NEATO", "R", "-e", "shiny::runApp('/app', host = '0.0.0.0', port = 8080)"]

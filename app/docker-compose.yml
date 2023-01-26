@@ -10,31 +10,32 @@ services:
   enrich_app:
     # build: .
     image: enrich_app
-    privileged: true
     ports: 
       - 8080:8080
     volumes:
-      - enrich:/edata
+    # - /Users/lewi052/enrich_proj/NEATO/app/test_data/test_yeast.csv:/app/test_data/test_yeast.csv
+    # - /Users/lewi052/enrich_proj/NEATO/app/global.R:/app/global.R
+    # - /Users/lewi052/enrich_proj/NEATO/app/String.R:/app/String.R
+    # - /Users/lewi052/enrich_proj/NEATO/app/ui.R:/app/ui.R
+    # - /Users/lewi052/enrich_proj/NEATO/app/enrichment.R:/app/enrichment.R
+    # - /Users/lewi052/enrich_proj/NEATO/app/server.R:/app/server.R
+    # - /Users/lewi052/enrich_proj/NEATO/app/Enrichment_db:/app/Enrichment_db
+    # - /Users/lewi052/enrich_proj/NEATO/app/www/bootstrap.css:/app/www/bootstrap.css
+    # - /Users/lewi052/enrich_proj/NEATO/app/www/neato.jpeg:/app/www/neato.jpeg
+    # - /Users/lewi052/enrich_proj/NEATO/app/www/about_neato.md:/app/www/about_neato.md
     environment:
-      - SHINYPROXY_USERNAME=test_user # Required to create folder in minio
       - DEMO_VERSION="1"
-  inters_db:
-    image: loglew12/inters_db:latest
-    volumes:
-      - inters:/idata
-  enrich_db:
-    image: loglew12/enrich_db:latest
-    volumes:
-      - enrich:/edata
+      - SHINYPROXY_USERNAME=test_user #change too $SHINYPROXY_USERNAME when deploying on cloud
   neatodata-service:
     image: neato_service # Build 
     container_name: neato_service
-    volumes:
-      - inters:/idata
-      - "./NEATO-Service/minio_config.yml:/minio_config.yml" # Service needs to connect to minio
-      - "./NEATO-Service/redis_config.yml:/redis_config.yml" # Service needs to connect to redis
+    # volumes:
+    #  - "/Users/lewi052/enrich_proj/NEATO/app/NEATO-Service/rworker.R:/rworker.R"
+    #  - "/Users/lewi052/enrich_proj/NEATO/app/NEATO-Service/String.R:/String.R"
+    # - "/Users/lewi052/enrich_proj/NEATO/app/NEATO-Service/STRING_db:/STRING_db"
     environment:
-        - SHINYPROXY_USERNAME=test_user
+      - DEMO_VERSION="1"
+      - SHINYPROXY_USERNAME=test_user #change too $SHINYPROXY_USERNAME when deploying on cloud
     ports:
         - "8081:3838"
   redis1: # The "job board" container
@@ -44,7 +45,3 @@ services:
         - "6379"
     ports: 
         - "6379:6379"
-
-volumes:
-  inters:
-  enrich:

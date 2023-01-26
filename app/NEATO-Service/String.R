@@ -1,23 +1,23 @@
 library(readr)
 
 make_mapping_db <- function(species) {
-  if(Sys.getenv("DEMO_VERSION") == "0"){
-    mapping_file <- paste0("STRING_db/", species, ".protein.aliases.v11.5.txt.gz")
-  } 
-  else if(Sys.getenv("DEMO_VERSION") == "1"){
-    mapping_file <- paste0("/idata/", species, ".protein.aliases.v11.5.txt.gz")
-  }
+  # if(Sys.getenv("DEMO_VERSION") == "0"){
+  #   mapping_file <- paste0("STRING_db/", species, ".protein.aliases.v11.5.txt.gz")
+  # } 
+  # else if(Sys.getenv("DEMO_VERSION") == "1"){
+  mapping_file <- paste0("STRING_db/", species, ".protein.aliases.v11.5.txt.gz")
+  # }
 mapping_db <- read.csv(mapping_file, sep = "\t")
 return(mapping_db)
 }
 
 make_inters_db <- function(species) {
-  if(Sys.getenv("DEMO_VERSION") == "0"){
-    inters_file <- paste0("STRING_db/", species, ".protein.links.v11.5.txt.gz")
-  }
-  else if(Sys.getenv("DEMO_VERSION") == "1"){
-    inters_file <- paste0("/idata/", species, ".protein.links.v11.5.txt.gz")
-  }
+  # if(Sys.getenv("DEMO_VERSION") == "0"){
+  #   inters_file <- paste0("STRING_db/", species, ".protein.physical.links.v11.5.txt.gz")
+  # }
+  # else if(Sys.getenv("DEMO_VERSION") == "1"){
+  inters_file <- paste0("STRING_db/", species, ".protein.physical.links.v11.5.txt.gz")
+  # }
 inters_db <- read.table(inters_file, header = T)
 return(inters_db)
 }

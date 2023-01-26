@@ -6,29 +6,74 @@ clry <- reticulate::import('celery')
 celery_app <- clry$Celery('app', broker=redis_url, backend=redis_url)
 
 server <- function(input, output, session) {
-  #set to 0 for running local, 1 for running in docker
   # Sys.setenv("DEMO_VERSION" = "0")
   Sys.setenv("DEMO_VERSION" = "1")
   TheTable <- reactiveValues(ID = NULL, Unfiltered = NULL, Filtered = NULL, Job = NULL)
   
   # Reading in user uploaded file
   readUserData <- reactive({
-    file <- input$inFile
-    ext <- tools::file_ext(file$datapath)
+    
+    validate(
+      need(!is.null(input$inFile) | input$testDataButton, "No Dataset to process")
+    )
+    
+    if(!is.null(input$inFile) | input$testDataButton){
+    if(input$testDataButton){
+      userData <- read.csv("test_data/test_yeast.csv")
+    }
+    else {
+      file <- input$inFile
+      ext <- tools::file_ext(file$datapath)
     if(ext == "csv"){
       userData <- read.csv(file$datapath)
     } else {
       userData <- readRDS(file$datapath)
     }
+    }
     userData
+    }
   })
   
   # Displays datatable of uploaded file
-  observeEvent(input$inFile, {
+  toListen <- reactive({
+    list(input$testDataButton,input$inFile)
+  })
+  
+  observeEvent(toListen(), {
+    if(!is.null(input$inFile) | input$testDataButton){
+    updateSelectInput(
+      session,
+      "Protein",
+      choices=names(readUserData()))
+  }}, ignoreInit = T)
+  
+  observeEvent(toListen(), {
+    if(!is.null(input$inFile) | input$testDataButton){
+    updateSelectInput(
+      session,
+      "logFC",
+      choices=names(readUserData()))
+  }}, ignoreInit = T)
+  
+  observeEvent(toListen(), {
+    if(!is.null(input$inFile) | input$testDataButton){
+    updateSelectInput(
+      session,
+      "P_val",
+      choices=names(readUserData()))
+  }}, ignoreInit = T)
+  
+  observeEvent(toListen(), ignoreInit = T, {
+  #observeEvent((input$inFile | input$testDataButton), ignoreInit = T, {
     output$previewTable <- renderDataTable({
       userData <- readUserData()
       DT::datatable(userData, options = list(scrollX = TRUE))
     }, options = list(pageLength = 10))})
+  
+  # observeEvent(input$sendService) {
+  #   isolate(algorithm <- input$algorithm)
+  #   output$algoTesting <- renderText(paste0("The algorithm is: ", algorithm))
+  # }
   
   observeEvent(input$sendService, {
       isolate(userData <- readUserData())
@@ -41,19 +86,25 @@ server <- function(input, output, session) {
       isolate(scoreThresh <- input$scoreThresh)
       isolate(algorithm <- input$algorithm)
       
+      validate(
+        need(length(unique(c(Protein, logFC, P_val))) == 3, "Selected column names must be unique.")
+      )
+      
+      validate(
+        need("" %in% c(Protein, logFC, P_val, P_val_cut, species, includedProts, scoreThresh, algorithm), "A parameter was left blank! Please check your parameters.")
+      )
+      
       #converting given column names to known ones
       colnames(userData)[which(names(userData) == Protein)] <- "Protein_Identifier"
       colnames(userData)[which(names(userData) == logFC)] <- "Fold_change"
       colnames(userData)[which(names(userData) == P_val)] <- "P_value"
       
-      #filtering by provided p-value
-      filtUserData <- filter(userData, P_value <= input$P_val_cut)
+      output$algoTesting <- renderText(paste0("The algorithm is: ", algorithm))
       
-      #Adding absolute value of log fold change column
-      filtUserData <- mutate(filtUserData, Fold_change_abs = abs(filtUserData$Fold_change))
-      filtUserData <- filtUserData[order(filtUserData$`Fold_change_abs`, decreasing = T), ]
-      TheTable$ID <- put_data(con, filtUserData)
-      TheTable$Job <- celery_app$send_task(algorithm,
+      #Submiting task
+      TheTable$ID <- put_data(con, userData)
+      if(algorithm == "explicitGraph") {
+      TheTable$Job <- celery_app$send_task("explicitGraph",
                        kwargs = list(
                          username = Sys.getenv("SHINYPROXY_USERNAME"),
                          id = TheTable$ID,
@@ -61,10 +112,23 @@ server <- function(input, output, session) {
                          includedProts = includedProts,
                          scoreThresh = scoreThresh
                        ))
+      } else if(algorithm == "inferredGraph") {
+        TheTable$Job <- celery_app$send_task("inferredGraph",
+                                             kwargs = list(
+                                               username = Sys.getenv("SHINYPROXY_USERNAME"),
+                                               id = TheTable$ID,
+                                               species = species,
+                                               includedProts = includedProts,
+                                               scoreThresh = scoreThresh
+                                             ))
+      }
+      output$Loading <- renderText("Data submitted! Click \"Check Status\" to see the status of the job.")
   })
   enrich_db <- reactive({
     if(input$pcsfSubmit >= 1){
-      isolate(species <- input$species)
+      query <- parseQueryString(session$clientData$url_search)
+      data <- get_data(con, query)
+      species <- data[[3]]
       make_enrich_db(species)
     }
   })
@@ -73,6 +137,7 @@ server <- function(input, output, session) {
     if (input$pcsfSubmit >= 1) {
       isolate(algorithm <- input$algorithm)
       query <- parseQueryString(session$clientData$url_search)
+      print(query)
       data <- get_data(con, query)
       subnet <- data[[2]]
       if(algorithm == "inferredGraph") {

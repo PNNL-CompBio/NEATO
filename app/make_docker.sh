@@ -9,4 +9,5 @@ cd NEATO-Service
 docker build -t neato_service .
 cd ..
 docker build -t enrich_app .
-docker-compose up
+# if [ -z ${SHINYPROXY_USERNAME+x} ]; then SHINYPROXY_USERNAME="test_user"
+# docker-compose up

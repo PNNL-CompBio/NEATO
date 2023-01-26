@@ -1,20 +1,13 @@
 library(leapR)
 
 make_enrich_db <- function(species){
+  print(species)
   if(species == 9606){ #hard coded for now, will change when enrichment database files are more structured and final
-    if(Sys.getenv("DEMO_VERSION") == "0"){
       enrich_db <- read_gene_sets("Enrichment_db/GO_Biological_Process_2021.txt")
-    }
-    else if(Sys.getenv("DEMO_VERSION") == "1"){
-      enrich_db <- read_gene_sets("/edata/GO_Biological_Process_2021.txt")
-    }
   } else if(species == 10090){
-    if(Sys.getenv("DEMO_VERSION") == "0"){
       enrich_db <- read_gene_sets("Enrichment_db/Mouse_Gene_Atlas_fixed.txt")
-    }
-    else if(Sys.getenv("DEMO_VERSION") == "1"){
-      enrich_db <- read_gene_sets("/edata/Mouse_Gene_Atlas_fixed.txt")
-    }
+  } else if(species == 4932){
+      enrich_db <- read_gene_sets("Enrichment_db/Yeast_GO_Biological_Process_2018.txt")
   }
   return(enrich_db)
 }
