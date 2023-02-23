@@ -9,8 +9,8 @@ results using protein-protein interaction networks (PPIs).
 FEA provides additional insight into proteomic studies by identifying cellular pathways 
 and functions most affected by a subset of proteins that are altered in a structure 
 experiment or specific environmental study. In NEATO, the [LeapR](https://github.com/PNNL-CompBio/leapR) 
-package is used to perform the functionalenrichment, using the "enrichment_in_sets" 
-method. 
+package is used to perform the functional enrichment, using the "enrichment_in_sets" 
+method. The enrichment databases used for the app are found on the [enrichR website](https://maayanlab.cloud/Enrichr/#libraries)
 
 PPI networks help visualize the results of FEA by using information from experiments 
 that detect how proteins signal activity to one another. This helps researchers 
@@ -26,7 +26,8 @@ fills in using the [PCSF](https://github.com/IOR-Bioinformatics/PCSF) package.
 
 **Upload the data.** NEATO accepts [Pmart](https://github.com/pmartR/pmartR) midpoint objects that contain proteomics 
 data. It otherwise also accepts .csv and .tsv files containing protein identifiers,
-log-fold changes, and a p-values for differically expressed proteins.
+log-fold changes, and a p-values for differencially expressed proteins. We also 
+include test data based on data from [this publication by Blabby-Hass, et al.](https://www.sciencedirect.com/science/article/pii/S2211124722006076). 
 
 ### Step 2:
 

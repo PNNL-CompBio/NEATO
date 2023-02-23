@@ -16,13 +16,13 @@ services:
     # - /Users/lewi052/enrich_proj/NEATO/app/test_data/test_yeast.csv:/app/test_data/test_yeast.csv
     # - /Users/lewi052/enrich_proj/NEATO/app/global.R:/app/global.R
     # - /Users/lewi052/enrich_proj/NEATO/app/String.R:/app/String.R
-    # - /Users/lewi052/enrich_proj/NEATO/app/ui.R:/app/ui.R
+    - /Users/lewi052/enrich_proj/NEATO/app/ui.R:/app/ui.R
     # - /Users/lewi052/enrich_proj/NEATO/app/enrichment.R:/app/enrichment.R
-    # - /Users/lewi052/enrich_proj/NEATO/app/server.R:/app/server.R
+    - /Users/lewi052/enrich_proj/NEATO/app/server.R:/app/server.R
     # - /Users/lewi052/enrich_proj/NEATO/app/Enrichment_db:/app/Enrichment_db
     # - /Users/lewi052/enrich_proj/NEATO/app/www/bootstrap.css:/app/www/bootstrap.css
     # - /Users/lewi052/enrich_proj/NEATO/app/www/neato.jpeg:/app/www/neato.jpeg
-    # - /Users/lewi052/enrich_proj/NEATO/app/www/about_neato.md:/app/www/about_neato.md
+    - /Users/lewi052/enrich_proj/NEATO/app/www/about_neato.md:/app/www/about_neato.md
     environment:
       - DEMO_VERSION="1"
       - SHINYPROXY_USERNAME=test_user #change too $SHINYPROXY_USERNAME when deploying on cloud
