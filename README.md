@@ -27,13 +27,13 @@ Currently we searchf for GO biological pathways in which the selected proteins a
 ## Architecture
 
 The NEATO architecture is designed so that we can configure/update the following modules:
-- Network: currently we use the STRING entwork but can also use a kinase-substrate network or other type of interaction network
+- Network: currently we use the STRING network but can also use a kinase-substrate network or other type of interaction network
 - Functional enrichment mapping: we hope to augment the enrichment to allow for different species and different types of pathways
 - Network algorithm: we hope to add in additional network functionality
 
-![image](https://user-images.githubusercontent.com/65473513/171519485-dfddf6a5-8cfe-4f0d-bbfa-d5f7b55160ef.png)
+![image](https://user-images.githubusercontent.com/65473513/221019667-0a5a0b20-3299-4902-8e22-27471a6edfaa.png)
 
-The above is the planned architecture of the app. The app will take proteomics data (that had been processed by pmart) provided by the user as input. This data is used in combination with the interactions stored in the the STRING database, which will be housed locally, to contruct a network using one of the provided package. So far the app contains STRING and PCSF, but more could be added later on. These packages will output an iGraph object, which can be clustered using functions built into the iGraph package. From here, we can visualize the graph using the visNetwork package. VisNetwork displays a custimizable and interactive graph that colors the nodes based on cluster and allows the user to move around the nodes. Finally, we perform an enrichment on the data using the leapR package, as well as a local enrichment database.
+The above is the planned architecture of the app. The app will take proteomics data (that had been processed by pmart) provided by the user as input. Once uploaded the data is stored on MinIO, which ensures the data persists after users close the application, and also the data to be passed to the service container. This data is used in combination with the interactions stored in the STRING database, which will be housed locally, to contruct a network using one of the provided algorithms hosted in the NEATO service contianer. So far the app contains STRING and PCSF, but more could be added later on. The Redis package is used to send the request job from NEATO's frontend to the backend service container, and delivers status updates from the backend to the frontend for the user. These packages will output an iGraph object, which can be clustered using functions built into the iGraph package. From here, the output is saved to MinIO and loaded back into the frontend so we can visualize the graph using the visNetwork package. VisNetwork displays a custimizable and interactive graph that colors the nodes based on cluster and allows the user to move around the nodes. Finally, we perform an enrichment on the data using the leapR package, as well as a local enrichment database.
 
 ## How To Run
 
