@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     libhiredis-dev \
     libzmq3-dev \
     libxt-dev \
+    libicu-dev \ 
     vim python3-venv 
 
 
@@ -19,8 +20,7 @@ COPY . /
 
 # Install RWorker
 RUN R -e "options(renv.config.connect.timeout = 600)"
-RUN R -e "install.packages('devtools', dependencies=TRUE, repos='http://cran.rstudio.com/')"
-RUN Rscript -e "install.packages(c('devtools', 'stringr', 'rzmq', 'redux', 'R6', 'processx', 'jsonlite', 'glue', 'futile.logger', 'crayon', 'base64enc'), repos =  'https://cran.rstudio.com')"
+RUN Rscript -e "install.packages(c('devtools', 'stringr', 'rzmq', 'redux', 'R6', 'processx', 'jsonlite', 'glue', 'futile.logger', 'crayon', 'base64enc','stringi'), repos =  'https://cran.rstudio.com')"
 RUN Rscript -e "devtools::install_github('amwhite/rworker', repos = 'https://cran.rstudio.com')"
 RUN R -e "BiocManager::install('org.Hs.eg.db')"
 RUN R -e "BiocManager::install('topGO')"

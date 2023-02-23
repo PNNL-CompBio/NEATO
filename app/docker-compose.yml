@@ -12,7 +12,7 @@ services:
     image: enrich_app
     ports: 
       - 8080:8080
-    volumes:
+    #volumes:
     # - /Users/lewi052/enrich_proj/NEATO/app/test_data/test_yeast.csv:/app/test_data/test_yeast.csv
     # - /Users/lewi052/enrich_proj/NEATO/app/global.R:/app/global.R
     # - /Users/lewi052/enrich_proj/NEATO/app/String.R:/app/String.R
