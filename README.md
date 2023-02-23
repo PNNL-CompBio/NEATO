@@ -37,25 +37,6 @@ The above is the planned architecture of the app. The app will take proteomics d
 
 ## How To Run
 
-To run this app, make sure the Docker Desktop app is running and that you are logged in.
-Then run the following commands in the terminal.
-```
-git clone https://github.com/PNNL-CompBio/NEATO.git
-cd NEATO/app
-bash 
-```
- 
-### Run RShiny app locally
-
-To run this package locally requires the installation of [RStudio](http://rstudio.com). Once you have installed it you can run it locally as follows
-
-```
-require(devtools)
-devtools::install_github("PNNL-compbio/NEATO")
-``` 
-
-Click "Run app" in the top right corner of R Studio window.
-
-### How to run via Docker
+The NEATO package is not currently designed to be ran locally, and instead is being prepared for deployment on the [Multiomics Applicatoin Portal (MAP)](https://map.emsl.pnnl.gov/app/map).
 
 
