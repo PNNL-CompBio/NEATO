@@ -1,7 +1,11 @@
 # NEATO: Network Enrichment Analysis Tool for Omics
 
 Welcome to the NEATO home page. This tool is still heavily under development as we build out additional functionality. 
-
+```
+This repository has been archived and is no longer maintained.
+The code is provided for historical reference and may contain unpatched or unknown vulnerabilities.
+It should not be used in production systems.
+```
 ## Project Goals
 The primary goal of this project is to facilitate the creation of networks to enhance functional enrichment for transcriptomics, proteomics, and other types of high throughput data. To achieve this goal, we plan to build a modular [R Shiny](http://rstudio.com) application that can run locally, on your own server, or be accessed via the [EMSL cloud]() depending on your use case. We also hope to expand the use of network analysis tools and make them broadly interpretable.
 
